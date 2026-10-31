@@ -1,0 +1,7 @@
+DEMO ONBOARDING POLICY
+
+All new employees must submit the identity and address documents listed in their onboarding checklist before their joining date. HR reviews submitted documents. If a document is unclear or incorrect, HR changes its status to Correction Requested and records the reason.
+
+All employees must read and acknowledge the information security and acceptable use policies on or before their joining date. Engineering employees receive development-tool access only after the required approvals are complete.
+
+For questions not covered by this policy, employees should contact the HR Operations team.

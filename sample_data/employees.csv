@@ -1,0 +1,3 @@
+employee_code,name,email,role,grade,department,location,manager_name,joining_date
+E1001,Rahul Sharma,rahul.demo@example.com,Software Engineer,G5,Engineering,Bengaluru,Amit Verma,2026-11-16
+E1002,Priya Nair,priya.demo@example.com,HR Executive,G4,HR,Bengaluru,Meera Rao,2026-11-20

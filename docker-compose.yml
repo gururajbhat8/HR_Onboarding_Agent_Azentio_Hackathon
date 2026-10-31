@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: hr-onboarding-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: hr_onboarding
+      POSTGRES_USER: hr_user
+      POSTGRES_PASSWORD: hr_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - hr_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hr_user -d hr_onboarding"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  hr_postgres_data:
