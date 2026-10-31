@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import select, update
-from src.database.models import EmployeeModel, TaskModel, DocumentModel, AuditLogModel
+from src.database.models import EmployeeModel, TaskModel, DocumentModel, AuditLogModel, UserModel
 from src.api.schemas.employee import EmployeeProfile
 from src.core.rule_engine import RuleEngine
 
@@ -45,6 +45,22 @@ class EmployeeRepository:
             session.add(new_emp)
             session.commit()
             session.refresh(new_emp)
+            
+            # Ensure candidate login account exists
+            uname = new_emp.email.split("@")[0].lower()
+            stmt_user = select(UserModel).where((UserModel.username == uname) | (UserModel.employee_id == new_emp.id))
+            if not session.execute(stmt_user).scalar_one_or_none():
+                cand_user = UserModel(
+                    username=uname,
+                    password="candidate123",
+                    role="Candidate",
+                    full_name=new_emp.full_name,
+                    email=new_emp.email,
+                    employee_id=new_emp.id
+                )
+                session.add(cand_user)
+                session.commit()
+
             return new_emp
 
     @staticmethod
@@ -245,3 +261,133 @@ class AuditRepository:
         """Fetch all enterprise audit trail entries."""
         stmt = select(AuditLogModel).order_by(AuditLogModel.timestamp.desc())
         return list(session.execute(stmt).scalars().all())
+
+class UserRepository:
+    """Repository handling authentication, role segregation, and user accounts."""
+
+    @staticmethod
+    def authenticate(session: Session, username: str, password: str, expected_role: Optional[str] = None) -> Optional[UserModel]:
+        """Verify username, password, and optional expected role."""
+        u_clean = username.strip().lower()
+        stmt = select(UserModel).where(UserModel.username == u_clean)
+        user = session.execute(stmt).scalar_one_or_none()
+        if not user:
+            # Also allow login with email as username
+            stmt_email = select(UserModel).where(UserModel.email == u_clean)
+            user = session.execute(stmt_email).scalar_one_or_none()
+        
+        if not user:
+            return None
+        
+        if user.password != password:
+            return None
+            
+        if expected_role and user.role.lower() != expected_role.lower():
+            return None
+            
+        return user
+
+    @staticmethod
+    def get_user_by_username(session: Session, username: str) -> Optional[UserModel]:
+        """Fetch user by username or email."""
+        u_clean = username.strip().lower()
+        stmt = select(UserModel).where((UserModel.username == u_clean) | (UserModel.email == u_clean))
+        return session.execute(stmt).scalar_one_or_none()
+
+    @staticmethod
+    def get_users_by_role(session: Session, role: str) -> List[UserModel]:
+        """List all users having a given role."""
+        stmt = select(UserModel).where(UserModel.role == role).order_by(UserModel.username)
+        return list(session.execute(stmt).scalars().all())
+
+    @staticmethod
+    def get_all_users(session: Session) -> List[UserModel]:
+        """List all registered users in the system."""
+        stmt = select(UserModel).order_by(UserModel.role, UserModel.username)
+        return list(session.execute(stmt).scalars().all())
+
+    @staticmethod
+    def create_user(
+        session: Session,
+        username: str,
+        password: str,
+        role: str,
+        full_name: str,
+        email: str,
+        employee_id: Optional[str] = None
+    ) -> UserModel:
+        """Create a new user account."""
+        u_clean = username.strip().lower()
+        stmt = select(UserModel).where(UserModel.username == u_clean)
+        existing = session.execute(stmt).scalar_one_or_none()
+        if existing:
+            existing.password = password
+            existing.role = role
+            existing.full_name = full_name
+            existing.email = email
+            existing.employee_id = employee_id
+            session.commit()
+            session.refresh(existing)
+            return existing
+
+        user = UserModel(
+            username=u_clean,
+            password=password,
+            role=role,
+            full_name=full_name,
+            email=email,
+            employee_id=employee_id
+        )
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+        return user
+
+    @classmethod
+    def seed_default_users(cls, session: Session) -> None:
+        """Seed default admin, HR team, and candidate users if not present."""
+        # 1. Admin account
+        cls.create_user(
+            session=session,
+            username="admin",
+            password="admin123",
+            role="Admin",
+            full_name="System Administrator",
+            email="admin@azentio.com"
+        )
+
+        # 2. HR Team accounts
+        cls.create_user(
+            session=session,
+            username="hr1",
+            password="hr123",
+            role="HR",
+            full_name="Priya Sharma",
+            email="priya.sharma@azentio.com"
+        )
+        cls.create_user(
+            session=session,
+            username="hr2",
+            password="hr123",
+            role="HR",
+            full_name="Ananya Roy",
+            email="ananya.roy@azentio.com"
+        )
+
+        # 3. Candidate accounts for existing employees
+        stmt_emps = select(EmployeeModel)
+        employees = list(session.execute(stmt_emps).scalars().all())
+        for emp in employees:
+            uname = emp.email.split("@")[0].lower()
+            stmt_user = select(UserModel).where((UserModel.username == uname) | (UserModel.employee_id == emp.id))
+            cand_user = session.execute(stmt_user).scalar_one_or_none()
+            if not cand_user:
+                cls.create_user(
+                    session=session,
+                    username=uname,
+                    password="candidate123",
+                    role="Candidate",
+                    full_name=emp.full_name,
+                    email=emp.email,
+                    employee_id=emp.id
+                )

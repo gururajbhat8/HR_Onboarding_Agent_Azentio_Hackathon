@@ -76,3 +76,18 @@ class AuditLogModel(Base):
     reason = Column(Text, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
 
+class UserModel(Base):
+    """SQLAlchemy model for user authentication and role segregation."""
+    __tablename__ = "users"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    username = Column(String(100), unique=True, index=True, nullable=False)
+    password = Column(String(200), nullable=False)
+    role = Column(String(50), nullable=False) # Admin, HR, Candidate
+    full_name = Column(String(100), nullable=False)
+    email = Column(String(100), unique=True, nullable=False)
+    employee_id = Column(String(36), ForeignKey("employees.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    employee = relationship("EmployeeModel", foreign_keys=[employee_id])
+
