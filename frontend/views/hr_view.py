@@ -224,3 +224,4 @@ def render_hr_view():
                             st.caption(f"📖 **Source Citation**: *{c['document']}* — {c['section']}")
                     if resp.get("escalation"):
                         st.caption(f"🚨 **Escalation Path**: {resp['escalation']}")
+

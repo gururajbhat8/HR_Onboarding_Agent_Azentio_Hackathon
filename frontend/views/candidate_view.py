@@ -272,3 +272,4 @@ def render_candidate_view():
                                 st.caption(f"📖 **Citation**: *{cit['document']}* — Section: {cit['section']}")
                         if msg.get("escalation"):
                             st.caption(f"🚨 **Escalation Contact**: {msg['escalation']}")
+

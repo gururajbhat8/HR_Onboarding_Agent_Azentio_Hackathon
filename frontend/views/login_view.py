@@ -1,105 +1,74 @@
 import streamlit as st
 from src.database.session import SessionLocal, init_db
-from src.database.repository import UserRepository, EmployeeRepository
+from src.database.repository import UserRepository
 
 def render_login_view():
-    """Render the Azentio role-based authentication portal."""
+    """Render the enterprise production login portal."""
     init_db()
 
     st.markdown("""
-    <div style="text-align: center; margin-top: 10px; margin-bottom: 25px;">
-        <h1 style="color: #0B192C; font-weight: 800; font-size: 32px; margin-bottom: 6px;">
-            Azentio Onboarding Portal
-        </h1>
-        <p style="color: #64748B; font-size: 15px;">
-            Autonomous Multi-Perspective Lifecycle Management • Choose your role to sign in
+    <div style="text-align: center; margin-top: 15px; margin-bottom: 25px;">
+        <div style="font-size: 34px; font-weight: 800; color: #0B192C; letter-spacing: -0.5px;">
+            azentio<span style="color: #00DF8F;">.ai</span>
+        </div>
+        <p style="color: #64748B; font-size: 15px; margin-top: 4px;">
+            Enterprise Onboarding & Workforce Lifecycle Platform
         </p>
     </div>
     """, unsafe_allow_html=True)
 
-    # Centered container for login card
     col_l, col_center, col_r = st.columns([1, 2, 1])
 
     with col_center:
-        # Quick Demo Login Banner for hackathon judges
-        with st.expander("🔑 Quick Demo Credentials (1-Click Fill)", expanded=True):
-            st.markdown("<small style='color: #64748B;'>Click any role below to pre-populate credentials for evaluation:</small>", unsafe_allow_html=True)
-            col_d1, col_d2, col_d3 = st.columns(3)
-            
-            if col_d1.button("🛡️ Admin", use_container_width=True, help="Username: admin | Pass: admin123"):
-                st.session_state["demo_role"] = "Admin"
-                st.session_state["demo_user"] = "admin"
-                st.session_state["demo_pass"] = "admin123"
-                st.rerun()
-
-            if col_d2.button("💼 HR Team", use_container_width=True, help="Username: hr1 | Pass: hr123"):
-                st.session_state["demo_role"] = "HR"
-                st.session_state["demo_user"] = "hr1"
-                st.session_state["demo_pass"] = "hr123"
-                st.rerun()
-
-            if col_d3.button("👤 Candidate", use_container_width=True, help="Username: arjun.rao | Pass: candidate123"):
-                st.session_state["demo_role"] = "Candidate"
-                st.session_state["demo_user"] = "arjun.rao"
-                st.session_state["demo_pass"] = "candidate123"
-                st.rerun()
-
-        st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
-
-        # Retrieve any demo prefill
-        demo_role = st.session_state.get("demo_role", "Admin")
-        demo_user = st.session_state.get("demo_user", "admin")
-        demo_pass = st.session_state.get("demo_pass", "admin123")
-
         role_options = ["Admin", "HR", "Candidate"]
-        default_index = role_options.index(demo_role) if demo_role in role_options else 0
 
-        # Tabbed login interface for the 3 perspectives
         selected_role = st.radio(
-            "Select Portal Perspective:",
+            "Select Portal Access:",
             options=role_options,
-            index=default_index,
+            index=0,
             horizontal=True,
-            format_func=lambda x: f"🛡️ Admin Portal" if x == "Admin" else (f"💼 HR Operations" if x == "HR" else f"👤 Candidate Portal")
+            format_func=lambda x: f"🛡️ Admin" if x == "Admin" else (f"💼 HR Operations" if x == "HR" else f"👤 Candidate")
         )
 
-        st.markdown("<div style='background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; padding: 24px; box-shadow: 0 4px 16px rgba(0,0,0,0.04); margin-top: 10px;'>", unsafe_allow_html=True)
+        st.markdown("<div style='background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; padding: 26px 28px; box-shadow: 0 4px 18px rgba(11,25,44,0.06); margin-top: 10px;'>", unsafe_allow_html=True)
 
         if selected_role == "Admin":
-            st.info("🛡️ **Admin Portal Access**: Ingest candidate batches, trigger cascade recalculations, manage users, and view system audit trails.")
-            username_val = demo_user if demo_role == "Admin" else "admin"
-            password_val = demo_pass if demo_role == "Admin" else "admin123"
+            st.markdown("<div style='font-size: 18px; font-weight: 700; color: #0B192C; margin-bottom: 4px;'>Administrator Login</div>", unsafe_allow_html=True)
+            st.caption("Access the batch ingestion engine, dynamic cascade recalculations, and system audit trail.")
+            user_placeholder = "Enter admin username or email"
 
         elif selected_role == "HR":
-            st.info("💼 **HR Operations Access**: Review document submissions in the HITL console, track candidate readiness, and manage task blockers.")
-            username_val = demo_user if demo_role == "HR" else "hr1"
-            password_val = demo_pass if demo_role == "HR" else "hr123"
+            st.markdown("<div style='font-size: 18px; font-weight: 700; color: #0B192C; margin-bottom: 4px;'>HR Operations Login</div>", unsafe_allow_html=True)
+            st.caption("Access the document verification queue (HITL), candidate pipeline, and SLA management.")
+            user_placeholder = "e.g. hr1 or priya.sharma@azentio.com"
 
-        else: # Candidate
-            st.info("👤 **Candidate Portal Access**: View your personalized onboarding checklist, upload required documents, and chat with the Grounded Policy Copilot.")
-            username_val = demo_user if demo_role == "Candidate" else "arjun.rao"
-            password_val = demo_pass if demo_role == "Candidate" else "candidate123"
+        else:
+            st.markdown("<div style='font-size: 18px; font-weight: 700; color: #0B192C; margin-bottom: 4px;'>Candidate Portal Login</div>", unsafe_allow_html=True)
+            st.caption("Access your personalized onboarding checklist, document uploads, and policy assistant.")
+            user_placeholder = "e.g. arjun.rao or arjun.rao@candidate.com"
 
-        # Login Form
-        with st.form("azentio_login_form"):
-            input_username = st.text_input("Username or Corporate Email:", value=username_val)
-            input_password = st.text_input("Password:", value=password_val, type="password")
+        st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+
+        with st.form("azentio_enterprise_login_form"):
+            input_username = st.text_input("Username or Corporate Email:", placeholder=user_placeholder)
+            input_password = st.text_input("Password:", placeholder="••••••••", type="password")
+            
+            st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
             submitted = st.form_submit_button(f"Sign In as {selected_role} →", use_container_width=True)
 
             if submitted:
-                if not input_username or not input_password:
-                    st.error("Please enter both username and password.")
+                if not input_username.strip() or not input_password.strip():
+                    st.error("Please enter both username/email and password.")
                 else:
                     with SessionLocal() as session:
                         user = UserRepository.authenticate(
                             session=session,
-                            username=input_username,
-                            password=input_password,
+                            username=input_username.strip(),
+                            password=input_password.strip(),
                             expected_role=selected_role
                         )
 
                         if user:
-                            # Save authenticated user in session state
                             st.session_state["user"] = {
                                 "id": user.id,
                                 "username": user.username,
@@ -108,9 +77,8 @@ def render_login_view():
                                 "email": user.email,
                                 "employee_id": user.employee_id
                             }
-                            st.success(f"Welcome, {user.full_name}! Redirecting to {user.role} Dashboard...")
                             st.rerun()
                         else:
-                            st.error(f"Invalid credentials for {selected_role} role. Please check username/password or use the Quick Demo buttons above.")
+                            st.error(f"Authentication failed: Invalid credentials for {selected_role} access.")
 
         st.markdown("</div>", unsafe_allow_html=True)

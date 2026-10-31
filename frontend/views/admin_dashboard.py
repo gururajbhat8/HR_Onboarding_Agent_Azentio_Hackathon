@@ -316,7 +316,7 @@ def render_admin_dashboard():
     # -------------------------------------------------------------
     with admin_tabs[3]:
         st.markdown("### 👥 User Accounts & Role-Based Access")
-        st.caption("Review existing user credentials in SQLite, add HR managers or candidate demo accounts.")
+        st.caption("Review existing user credentials in SQLite, add HR managers or candidate accounts.")
 
         users_list = _fetch_users()
         df_users = pd.DataFrame(users_list) if users_list else pd.DataFrame()

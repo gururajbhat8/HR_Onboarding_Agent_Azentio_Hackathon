@@ -37,3 +37,4 @@ def test_user_seeding_and_authentication():
         assert custom.id is not None
         auth_custom = UserRepository.authenticate(session, "test.candidate.custom", "candidate123", expected_role="Candidate")
         assert auth_custom is not None
+
