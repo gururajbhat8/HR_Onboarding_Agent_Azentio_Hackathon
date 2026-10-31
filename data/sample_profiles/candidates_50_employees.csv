@@ -1,0 +1,51 @@
+employee_code,full_name,email,phone,role,grade,department,location,manager_email,joining_date,onboarding_status
+AZ-EMP-201,Aarav Sharma,aarav.sharma@candidate.com,+91 9800 10000,Senior Software Engineer,L4,Engineering,Bengaluru,ananya.roy@azentio.com,2026-11-10,Initiated
+AZ-EMP-202,Aditi Verma,aditi.verma@candidate.com,+91 9801 10137,Senior Product Manager,L4,Product,Mumbai,priya.sharma@azentio.com,2026-11-12,Initiated
+AZ-EMP-203,Akash Patel,akash.patel@candidate.com,+91 9802 10274,Billing Specialist,L1,Finance,Pune,suresh.nair@azentio.com,2026-11-14,Initiated
+AZ-EMP-204,Ananya Mehta,ananya.mehta@candidate.com,+91 9803 10411,Network Security Engineer,L4,Information Technology,Chennai,rahul.verma@azentio.com,2026-11-16,Initiated
+AZ-EMP-205,Arjun Iyer,arjun.iyer@candidate.com,+91 9804 10548,Talent Acquisition Lead,L3,Human Resources,Hyderabad,priya.sharma@azentio.com,2026-11-18,Initiated
+AZ-EMP-206,Bhavna Rao,bhavna.rao@candidate.com,+971 5005 10685,Regulatory Affairs Specialist,L3,Compliance,Dubai,deepak.mehta@azentio.com,2026-11-20,Initiated
+AZ-EMP-207,Chetan Nair,chetan.nair@candidate.com,+65 906 10822,Data Engineer,L3,Engineering,Singapore,ananya.roy@azentio.com,2026-11-22,Initiated
+AZ-EMP-208,Deepa Kulkarni,deepa.kulkarni@candidate.com,+91 9807 10959,UI/UX Designer,L2,Product,Bengaluru,priya.sharma@azentio.com,2026-11-24,Initiated
+AZ-EMP-209,Dev Deshmukh,dev.deshmukh@candidate.com,+91 9808 11096,Financial Analyst,L2,Finance,Mumbai,suresh.nair@azentio.com,2026-11-26,Initiated
+AZ-EMP-210,Divya Pillai,divya.pillai@candidate.com,+91 9809 11233,IT Support Specialist,L2,Information Technology,Pune,rahul.verma@azentio.com,2026-11-28,Initiated
+AZ-EMP-211,Gaurav Chopra,gaurav.chopra@candidate.com,+91 9810 11370,Talent Acquisition Lead,L3,Human Resources,Chennai,priya.sharma@azentio.com,2026-11-30,Initiated
+AZ-EMP-212,Harsh Reddy,harsh.reddy@candidate.com,+91 9811 11507,Regulatory Affairs Specialist,L3,Compliance,Hyderabad,deepak.mehta@azentio.com,2026-12-02,Initiated
+AZ-EMP-213,Isha Gupta,isha.gupta@candidate.com,+971 5012 11644,DevOps Engineer,L3,Engineering,Dubai,ananya.roy@azentio.com,2026-12-04,Initiated
+AZ-EMP-214,Ishaan Bose,ishaan.bose@candidate.com,+65 913 11781,Lead Product Designer,L4,Product,Singapore,priya.sharma@azentio.com,2026-12-06,Initiated
+AZ-EMP-215,Karan Menon,karan.menon@candidate.com,+91 9814 11918,Billing Specialist,L1,Finance,Bengaluru,suresh.nair@azentio.com,2026-12-08,Initiated
+AZ-EMP-216,Kavya Joshi,kavya.joshi@candidate.com,+91 9815 12055,Network Security Engineer,L4,Information Technology,Mumbai,rahul.verma@azentio.com,2026-12-10,Initiated
+AZ-EMP-217,Madhav Bhat,madhav.bhat@candidate.com,+91 9816 12192,Talent Acquisition Lead,L3,Human Resources,Pune,priya.sharma@azentio.com,2026-12-12,Initiated
+AZ-EMP-218,Manish Sen,manish.sen@candidate.com,+91 9817 12329,Regulatory Affairs Specialist,L3,Compliance,Chennai,deepak.mehta@azentio.com,2026-12-14,Initiated
+AZ-EMP-219,Meera Bhattacharya,meera.bhattacharya@candidate.com,+91 9818 12466,Frontend Developer,L2,Engineering,Hyderabad,ananya.roy@azentio.com,2026-12-16,Initiated
+AZ-EMP-220,Mohit Malhotra,mohit.malhotra@candidate.com,+971 5019 12603,Product Operations Specialist,L2,Product,Dubai,priya.sharma@azentio.com,2026-12-18,Initiated
+AZ-EMP-221,Naveen Kapoor,naveen.kapoor@candidate.com,+65 920 12740,Financial Analyst,L2,Finance,Singapore,suresh.nair@azentio.com,2026-12-20,Initiated
+AZ-EMP-222,Neha Mukherjee,neha.mukherjee@candidate.com,+91 9821 12877,IT Support Specialist,L2,Information Technology,Bengaluru,rahul.verma@azentio.com,2026-12-22,Initiated
+AZ-EMP-223,Nikhil Agarwal,nikhil.agarwal@candidate.com,+91 9822 13014,Talent Acquisition Lead,L3,Human Resources,Mumbai,priya.sharma@azentio.com,2026-12-24,Initiated
+AZ-EMP-224,Nisha Saxena,nisha.saxena@candidate.com,+91 9823 13151,Regulatory Affairs Specialist,L3,Compliance,Pune,deepak.mehta@azentio.com,2026-11-11,Initiated
+AZ-EMP-225,Pranav Das,pranav.das@candidate.com,+91 9824 13288,Senior Software Engineer,L4,Engineering,Chennai,ananya.roy@azentio.com,2026-11-13,Initiated
+AZ-EMP-226,Pooja Pandey,pooja.pandey@candidate.com,+91 9825 13425,Product Manager,L3,Product,Hyderabad,priya.sharma@azentio.com,2026-11-15,Initiated
+AZ-EMP-227,Rahul Mishra,rahul.mishra@candidate.com,+971 5026 13562,Billing Specialist,L1,Finance,Dubai,suresh.nair@azentio.com,2026-11-17,Initiated
+AZ-EMP-228,Rhea Trivedi,rhea.trivedi@candidate.com,+65 927 13699,Network Security Engineer,L4,Information Technology,Singapore,rahul.verma@azentio.com,2026-11-19,Initiated
+AZ-EMP-229,Rishi Banerjee,rishi.banerjee@candidate.com,+91 9828 13836,Talent Acquisition Lead,L3,Human Resources,Bengaluru,priya.sharma@azentio.com,2026-11-21,Initiated
+AZ-EMP-230,Ritu Singh,ritu.singh@candidate.com,+91 9829 13973,Regulatory Affairs Specialist,L3,Compliance,Mumbai,deepak.mehta@azentio.com,2026-11-23,Initiated
+AZ-EMP-231,Rohan Fernandes,rohan.fernandes@candidate.com,+91 9830 14110,Data Engineer,L3,Engineering,Pune,ananya.roy@azentio.com,2026-11-25,Initiated
+AZ-EMP-232,Sanjana Dsouza,sanjana.dsouza@candidate.com,+91 9831 14247,Senior Product Manager,L4,Product,Chennai,priya.sharma@azentio.com,2026-11-27,Initiated
+AZ-EMP-233,Saurabh Shetty,saurabh.shetty@candidate.com,+91 9832 14384,Financial Analyst,L2,Finance,Hyderabad,suresh.nair@azentio.com,2026-11-29,Initiated
+AZ-EMP-234,Shreya Hegde,shreya.hegde@candidate.com,+971 5033 14521,IT Support Specialist,L2,Information Technology,Dubai,rahul.verma@azentio.com,2026-12-01,Initiated
+AZ-EMP-235,Siddharth Kamath,siddharth.kamath@candidate.com,+65 934 14658,Talent Acquisition Lead,L3,Human Resources,Singapore,priya.sharma@azentio.com,2026-12-03,Initiated
+AZ-EMP-236,Simran Pai,simran.pai@candidate.com,+91 9835 14795,Regulatory Affairs Specialist,L3,Compliance,Bengaluru,deepak.mehta@azentio.com,2026-12-05,Initiated
+AZ-EMP-237,Sneha Prabhu,sneha.prabhu@candidate.com,+91 9836 14932,DevOps Engineer,L3,Engineering,Mumbai,ananya.roy@azentio.com,2026-12-07,Initiated
+AZ-EMP-238,Tanvi Somani,tanvi.somani@candidate.com,+91 9837 15069,UI/UX Designer,L2,Product,Pune,priya.sharma@azentio.com,2026-12-09,Initiated
+AZ-EMP-239,Tarun Jain,tarun.jain@candidate.com,+91 9838 15206,Billing Specialist,L1,Finance,Chennai,suresh.nair@azentio.com,2026-12-11,Initiated
+AZ-EMP-240,Uma Bansal,uma.bansal@candidate.com,+91 9839 15343,Network Security Engineer,L4,Information Technology,Hyderabad,rahul.verma@azentio.com,2026-12-13,Initiated
+AZ-EMP-241,Varun Mittal,varun.mittal@candidate.com,+971 5040 15480,Talent Acquisition Lead,L3,Human Resources,Dubai,priya.sharma@azentio.com,2026-12-15,Initiated
+AZ-EMP-242,Vidya Goyal,vidya.goyal@candidate.com,+65 941 15617,Regulatory Affairs Specialist,L3,Compliance,Singapore,deepak.mehta@azentio.com,2026-12-17,Initiated
+AZ-EMP-243,Vikram Singhania,vikram.singhania@candidate.com,+91 9842 15754,Frontend Developer,L2,Engineering,Bengaluru,ananya.roy@azentio.com,2026-12-19,Initiated
+AZ-EMP-244,Yash Tiwari,yash.tiwari@candidate.com,+91 9843 15891,Lead Product Designer,L4,Product,Mumbai,priya.sharma@azentio.com,2026-12-21,Initiated
+AZ-EMP-245,Zoya Dubey,zoya.dubey@candidate.com,+91 9844 16028,Financial Analyst,L2,Finance,Pune,suresh.nair@azentio.com,2026-12-23,Initiated
+AZ-EMP-246,Aamir Shukla,aamir.shukla@candidate.com,+91 9845 16165,IT Support Specialist,L2,Information Technology,Chennai,rahul.verma@azentio.com,2026-11-10,Initiated
+AZ-EMP-247,Farhan Pandit,farhan.pandit@candidate.com,+91 9846 16302,Talent Acquisition Lead,L3,Human Resources,Hyderabad,priya.sharma@azentio.com,2026-11-12,Initiated
+AZ-EMP-248,Kareena Ranganathan,kareena.ranganathan@candidate.com,+971 5047 16439,Regulatory Affairs Specialist,L3,Compliance,Dubai,deepak.mehta@azentio.com,2026-11-14,Initiated
+AZ-EMP-249,Kabir Subramanian,kabir.subramanian@candidate.com,+65 948 16576,Senior Software Engineer,L4,Engineering,Singapore,ananya.roy@azentio.com,2026-11-16,Initiated
+AZ-EMP-250,Zara Swaminathan,zara.swaminathan@candidate.com,+91 9849 16713,Product Operations Specialist,L2,Product,Bengaluru,priya.sharma@azentio.com,2026-11-18,Initiated

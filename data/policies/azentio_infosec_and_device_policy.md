@@ -21,3 +21,4 @@
 ## Section 4: Data Protection & Prohibited Software
 4.1 Commercial generative AI tools (e.g. personal ChatGPT) must not be fed proprietary client banking data or customer PII.  
 4.2 Torrent clients, unauthorized VPNs, and cryptocurrency mining tools are strictly prohibited and monitored via CrowdStrike EDR.
+

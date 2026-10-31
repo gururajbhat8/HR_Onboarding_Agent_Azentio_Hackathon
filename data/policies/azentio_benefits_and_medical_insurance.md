@@ -17,3 +17,4 @@
 ## Section 3: Provident Fund (PF) & Gratuity
 3.1 Employees' Provident Fund (EPF) deduction is 12% of basic salary matched equally by Azentio.  
 3.2 Gratuity is payable per the Payment of Gratuity Act, 1972 after completion of 5 continuous years of service.
+

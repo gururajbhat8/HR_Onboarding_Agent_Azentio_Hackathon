@@ -75,3 +75,4 @@ def test_policy_rag_agent_escalates_blocked_tasks():
         assert "Identity" in res["answer"]
         assert res["escalation"] is not None
         assert "@azentio.com" in res["escalation"]
+

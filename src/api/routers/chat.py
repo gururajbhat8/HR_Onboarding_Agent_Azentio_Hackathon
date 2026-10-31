@@ -34,3 +34,4 @@ def ask_assistant(req: ChatRequest, db: Session = Depends(get_db)):
         session=db
     )
     return result
+

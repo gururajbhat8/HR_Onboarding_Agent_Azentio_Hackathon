@@ -21,3 +21,4 @@ All permanent full-time employees are entitled to:
 ## Section 4: Working Hours & Hybrid Work
 4.1 Standard working hours are 9:00 AM to 6:00 PM IST, Monday through Friday, with a 60-minute lunch break.  
 4.2 Technology and Engineering roles are eligible for 2 days Work-From-Home (WFH) per week with prior manager approval.
+

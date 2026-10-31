@@ -19,3 +19,4 @@
 ## Section 3: Dress Code & Documentation Checklist
 3.1 **Dress Code**: Smart Casual (Monday through Friday). Business formal attire required only during executive and client meetings.  
 3.2 **Mandatory Day-1 Physical Documents**: Candidates must carry original copies of PAN Card, Aadhaar Card, Highest Degree Certificate, and 3 passport-sized photographs for physical badge verification.
+

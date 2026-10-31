@@ -102,3 +102,4 @@ def render_assistant_chat():
                 "citations": res.get("citations", [])
             })
         st.rerun()
+

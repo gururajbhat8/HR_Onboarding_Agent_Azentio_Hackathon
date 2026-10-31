@@ -117,3 +117,4 @@ class VectorStoreService:
             results.append(c_copy)
 
         return results
+
