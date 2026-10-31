@@ -1,13 +1,16 @@
 import os
 import re
 from typing import Dict, Any, List, Optional
+from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 from src.database.models import EmployeeModel, TaskModel
-from src.database.repository import TaskRepository
+from src.database.repository import TaskRepository, DocumentRepository
 from src.services.vector_store import VectorStoreService
 
+load_dotenv()
+
 class PolicyRAGAgent:
-    """Conversational agent providing grounded policy answers with zero hallucinations and task escalation."""
+    """Autonomous AI HR Assistant providing grounded policy answers, candidate data inspection, and onboarding progress."""
 
     @classmethod
     def ask(
@@ -16,153 +19,160 @@ class PolicyRAGAgent:
         employee: EmployeeModel,
         session: Session
     ) -> Dict[str, Any]:
-        """Main agent entry point. Routes to Progress Engine, Task Engine, or Policy RAG."""
+        """Main agent routing entry point. Intelligently routes between Candidate Data/Status Engine and Policy RAG."""
         q_lower = query.lower()
 
-        # 1. Check if user is asking about their personal document review progress or approval/rejection reasons
-        progress_keywords = [
-            "progress", "approved", "rejected", "correction", "feedback", 
-            "remarks", "pan", "aadhaar", "passport", "degree", "verification",
-            "did hr", "has hr", "my doc", "my submission"
+        # 1. Candidate status, profile data, documents, approvals, or blocker queries
+        candidate_data_keywords = [
+            "status", "progress", "candidate data", "my data", "profile", "onboarding status",
+            "approved", "rejected", "correction", "feedback", "remarks", "pan", "aadhaar", 
+            "passport", "degree", "verification", "did hr", "has hr", "my doc", "my submission",
+            "checklist", "laptop", "blocked", "provisioning", "prerequisite", "which document",
+            "what document", "my task", "milestone", "who is my manager"
         ]
-        if any(k in q_lower for k in progress_keywords):
-            return cls._handle_progress_query(query, employee, session)
+        if any(k in q_lower for k in candidate_data_keywords):
+            return cls._handle_candidate_status_and_data_query(query, employee, session)
 
-        # 2. Check if user is asking about their checklist, blockers, or required documents
-        task_keywords = [
-            "which document", "what document", "my task", 
-            "checklist", "status", "laptop", "blocked", "provisioning", 
-            "escalat", "pending", "why is", "prerequisite"
-        ]
-        if any(k in q_lower for k in task_keywords):
-            return cls._handle_task_query(query, employee, session)
-
-        # 3. Otherwise route to Grounded Policy RAG
+        # 2. Otherwise route to Grounded Policy RAG
         return cls._handle_policy_query(query, employee)
 
     @classmethod
-    def _handle_progress_query(cls, query: str, employee: EmployeeModel, session: Session) -> Dict[str, Any]:
-        """Answer queries about candidate onboarding progress and HR approval/rejection reasons using Pinecone & DB."""
-        from src.database.repository import DocumentRepository
-        # Check Pinecone / semantic store first
-        progress_chunks = VectorStoreService.query_candidate_progress(query, candidate_id=employee.id)
+    def _handle_candidate_status_and_data_query(
+        cls,
+        query: str,
+        employee: EmployeeModel,
+        session: Session
+    ) -> Dict[str, Any]:
+        """Answer queries about candidate profile data, onboarding status, document approvals, and task blockers using live DB & LLM."""
+        from datetime import date
+        today = date.today()
+        days_left = (employee.joining_date - today).days if employee.joining_date else 0
+        countdown_str = f"{days_left} days remaining until joining" if days_left > 0 else "Joining date reached"
+
+        # 1. Retrieve Candidate Profile Data
+        profile_data = (
+            f"- Full Name: {employee.full_name}\n"
+            f"- Employee ID: {employee.id}\n"
+            f"- Role & Grade: {employee.role} ({employee.grade})\n"
+            f"- Department: {employee.department}\n"
+            f"- Office Location: {employee.location}\n"
+            f"- Official Joining Date: {employee.joining_date} ({countdown_str})\n"
+            f"- Reporting Manager: {employee.manager_email}\n"
+            f"- Email: {employee.email}"
+        )
+
+        # 2. Retrieve Submitted Documents & HR Decision Ledger
         docs = DocumentRepository.get_documents_for_employee(session, employee.id)
+        # Also check Pinecone progress vectors
+        progress_chunks = VectorStoreService.query_candidate_progress(query, candidate_id=employee.id)
 
-        if not docs and not progress_chunks:
-            return {
-                "answer": f"Hello {employee.full_name}, you have not submitted any verification documents yet. Please visit the **Submit My Documents** tab to upload your PAN, Aadhaar, Passport, or Degree Certificate.",
-                "citations": [{"document": "Azentio HR Decision Ledger", "section": "Document Staging"}],
-                "escalation": employee.manager_email
-            }
+        doc_summary_lines = []
+        if docs:
+            for d in docs:
+                status_symbol = "Accepted (Approved)" if d.status == "Accepted" else ("Correction Requested" if d.status == "Correction Requested" else "Pending Review")
+                reason_txt = f", HR Remarks/Reason: '{d.rejection_reason}'" if d.rejection_reason else ", HR Remarks: 'Verified and compliant'"
+                meta = d.extracted_metadata or {}
+                score_txt = f", AI Confidence Score: {meta.get('match_score', 0)}%"
+                doc_summary_lines.append(f"• Document: {d.document_type} (File: {d.file_name}) -> Status: {status_symbol}{score_txt}{reason_txt}")
+        else:
+            doc_summary_lines.append("• No documents uploaded yet. (Requires PAN, Aadhaar/Passport, Degree Certificate).")
 
-        progress_lines = []
-        for d in docs:
-            emoji = "✅" if d.status == "Accepted" else ("⚠️" if d.status == "Correction Requested" else "⏳")
-            reason_txt = f" • *HR Decision Remarks*: **{d.rejection_reason}**" if d.rejection_reason else ""
-            timestamp_txt = f" (Reviewed: {d.verified_at.strftime('%Y-%m-%d %H:%M')})" if d.verified_at else f" (Uploaded: {d.uploaded_at.strftime('%Y-%m-%d') if d.uploaded_at else ''})"
-            progress_lines.append(f"{emoji} **{d.document_type}**: Status is **{d.status}**{timestamp_txt}{reason_txt}")
+        # 3. Retrieve Live Onboarding Tasks & Dependencies
+        tasks = TaskRepository.get_tasks_for_employee(session, employee.id)
+        if not tasks:
+            tasks = TaskRepository.generate_and_save_checklist(session, employee.id)
 
-        context_str = "\n".join(progress_lines)
+        task_summary_lines = []
+        blocked_lines = []
+        completed_count = 0
+        for t in tasks:
+            if t.status == "Completed":
+                completed_count += 1
+                task_summary_lines.append(f"• [COMPLETED] {t.title} (Category: {t.category})")
+            elif t.status == "Blocked":
+                prereq_task = next((pt for pt in tasks if pt.task_code == t.prerequisite_task), None)
+                prereq_name = prereq_task.title if prereq_task else (t.prerequisite_task or "Prerequisite Verification")
+                prereq_owner = prereq_task.owner_email if prereq_task else "hr.ops@azentio.com"
+                blocked_lines.append(f"• [BLOCKED] {t.title} -> Waiting on prerequisite: '{prereq_name}' (Action Owner: {prereq_owner})")
+                task_summary_lines.append(f"• [BLOCKED] {t.title} -> Waiting on '{prereq_name}'")
+            else:
+                task_summary_lines.append(f"• [PENDING ACTION] {t.title} (Due: {t.due_date}, Owner: {t.owner_email})")
+
+        total_tasks = len(tasks)
+        readiness_pct = int((completed_count / total_tasks * 100)) if total_tasks > 0 else 0
+
+        # Construct comprehensive live context for LLM
+        live_context = (
+            f"=== CANDIDATE PROFILE DATA ===\n{profile_data}\n\n"
+            f"=== DOCUMENT VERIFICATION & HR DECISION LEDGER ===\n" + "\n".join(doc_summary_lines) + "\n\n"
+            f"=== ONBOARDING TASKS & READINESS ({readiness_pct}% Complete, {completed_count}/{total_tasks} tasks done) ===\n"
+            + "\n".join(task_summary_lines) + "\n\n"
+            + (f"=== ACTIVE BOTTLENECK DEPENDENCIES ===\n" + "\n".join(blocked_lines) if blocked_lines else "=== ACTIVE BOTTLENECK DEPENDENCIES ===\nNone. No tasks currently blocked.")
+        )
 
         groq_key = os.getenv("GROQ_API_KEY", "").strip()
         if groq_key and groq_key != "your_groq_api_key_here":
             try:
                 from groq import Groq
                 client = Groq(api_key=groq_key)
-                model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
-                
+                model = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
+
                 system_prompt = (
-                    f"You are the official Azentio AI HR Assistant answering an onboarding progress query for candidate {employee.full_name} ({employee.role}).\n"
-                    "Use ONLY the provided HR progress ledger context.\n"
-                    "State the document verification status clearly, quote the exact HR remarks/reasons, and mention if downstream tasks (like laptop provisioning) are unblocked or pending."
+                    "You are the official Azentio Autonomous AI HR Onboarding Agent.\n"
+                    "Your role is to answer questions from candidates or HR personnel regarding candidate data, onboarding progress, document verification status, and task dependencies.\n"
+                    "Rules:\n"
+                    "1. Rely strictly on the provided Candidate Profile, Document Verification Ledger, and Onboarding Tasks data.\n"
+                    "2. Quote exact document statuses (e.g., Accepted, Correction Requested) and specific HR remarks/feedback.\n"
+                    "3. If tasks (like Laptop Provisioning) are blocked, explain exactly what prerequisite document or approval is needed and who the action owner is.\n"
+                    "4. Be encouraging, clear, professional, and well-structured using markdown bullet points."
                 )
 
                 response = client.chat.completions.create(
                     model=model,
                     messages=[
                         {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": f"Candidate Progress Record:\n{context_str}\n\nCandidate Query: {query}"}
+                        {"role": "user", "content": f"Live Candidate Records:\n{live_context}\n\nUser Question: {query}"}
                     ],
                     temperature=0.1
                 )
                 return {
                     "answer": response.choices[0].message.content,
-                    "citations": [{"document": "Pinecone Vector Store & Azentio HR Ledger", "section": "Progress Verification"}],
-                    "escalation": "priya.sharma@azentio.com"
+                    "citations": [{"document": "Azentio Live Candidate Database & Decision Ledger", "section": f"Profile & Status Records ({employee.id})"}],
+                    "escalation": employee.manager_email or "priya.sharma@azentio.com"
                 }
             except Exception:
-                pass
+                pass # Graceful fallback to deterministic synthesis
 
-        # Deterministic Grounded Synthesis
-        answer = (
-            f"Here is your official onboarding and document verification progress, **{employee.full_name}**:\n\n"
-            + "\n".join(progress_lines)
-            + f"\n\n💡 *Note*: Approved documents immediately unblock downstream IT provisioning requirements. For questions on correction remarks, contact HR Operations (**priya.sharma@azentio.com**)."
-        )
+        # Deterministic Grounded Synthesis Fallback
+        answer_parts = [
+            f"### Onboarding Status & Candidate Data for **{employee.full_name}**",
+            f"- **Role**: {employee.role} ({employee.grade}) • **Department**: {employee.department}",
+            f"- **Location**: {employee.location} • **Joining Date**: {employee.joining_date} ({countdown_str})",
+            f"- **Readiness Progress**: **{readiness_pct}%** ({completed_count} of {total_tasks} milestones completed)",
+            "",
+            "#### Document Verification & HR Decisions:",
+            "\n".join(doc_summary_lines),
+            ""
+        ]
 
-        return {
-            "answer": answer,
-            "citations": [{"document": "Pinecone Vector Store & Azentio HR Ledger", "section": "Progress Verification"}],
-            "escalation": "priya.sharma@azentio.com"
-        }
+        if blocked_lines:
+            answer_parts.extend([
+                "#### ⚠️ Action Required / Blocked Dependencies:",
+                "\n".join(blocked_lines),
+                ""
+            ])
 
-    @classmethod
-    def _handle_task_query(cls, query: str, employee: EmployeeModel, session: Session) -> Dict[str, Any]:
-        """Answer task and status questions using live database checklist."""
-        tasks = TaskRepository.get_tasks_for_employee(session, employee.id)
-        if not tasks:
-            tasks = TaskRepository.generate_and_save_checklist(session, employee.id)
-
-        pending = [t for t in tasks if t.status == "Pending"]
-        blocked = [t for t in tasks if t.status == "Blocked"]
-        completed = [t for t in tasks if t.status == "Completed"]
-
-        # Check for specific blocker query (Scenario 5 escalation requirement)
-        if "blocked" in query.lower() or "laptop" in query.lower():
-            blocked_details = []
-            for bt in blocked:
-                prereq_task = next((t for t in tasks if t.task_code == bt.prerequisite_task), None)
-                prereq_name = prereq_task.title if prereq_task else (bt.prerequisite_task or "Prerequisite Verification")
-                prereq_owner = prereq_task.owner_email if prereq_task else "hr.ops@azentio.com"
-                blocked_details.append(
-                    f"• **{bt.title}** is currently **BLOCKED** waiting on *{prereq_name}* (Owner: **{prereq_owner}**)."
-                )
-
-            if blocked_details:
-                answer = (
-                    f"Here is the status of your onboarding dependencies for **{employee.full_name}** ({employee.role}):\n\n"
-                    + "\n".join(blocked_details)
-                    + f"\n\n🚨 **Escalation Path**: If this approval is overdue, please reach out directly to the responsible owner listed above or HR Lead **priya.sharma@azentio.com**."
-                )
-                return {
-                    "answer": answer,
-                    "citations": [{"document": "Azentio Onboarding SLA Matrix", "section": "Dependency & Escalation Rules"}],
-                    "escalation": "priya.sharma@azentio.com"
-                }
-
-        # General "Which documents do I need to submit?" (Level 1 capability)
-        doc_tasks = [t for t in tasks if t.category in ["Document", "Compliance"]]
-        doc_list = []
-        for dt in doc_tasks:
-            status_emoji = "✅" if dt.status == "Completed" else ("🔒" if dt.status == "Blocked" else "⏳")
-            doc_list.append(f"{status_emoji} **{dt.title}** (Due: {dt.due_date} • Rule: *{dt.rule_origin}*)")
-
-        answer = (
-            f"Based on your assigned role as **{employee.role}** in **{employee.location}** (Joining Date: {employee.joining_date}), "
-            f"here are your mandatory onboarding requirements:\n\n"
-            + "\n".join(doc_list)
-            + f"\n\n**Summary**: {len(completed)} completed, {len(pending)} pending action, {len(blocked)} blocked."
-        )
+        answer_parts.append(f"💡 *For questions on remarks, contact HR Operations (**priya.sharma@azentio.com**) or Manager (**{employee.manager_email}**).*")
 
         return {
-            "answer": answer,
-            "citations": [{"document": "Azentio Hiring & Onboarding Policy v2.4", "section": "Mandatory Role Requirements"}],
-            "escalation": employee.manager_email
+            "answer": "\n".join(answer_parts),
+            "citations": [{"document": "Azentio Live Candidate Database & Decision Ledger", "section": f"Profile & Status Records ({employee.id})"}],
+            "escalation": employee.manager_email or "priya.sharma@azentio.com"
         }
 
     @classmethod
     def _handle_policy_query(cls, query: str, employee: EmployeeModel) -> Dict[str, Any]:
-        """Perform grounded retrieval over official handbooks and synthesize with Groq LLM or deterministic fallback."""
+        """Perform grounded retrieval over official handbooks via Pinecone Vector DB and synthesize with Groq LLM."""
         chunks = VectorStoreService.query_policies(
             query=query,
             department=employee.department,
@@ -180,19 +190,20 @@ class PolicyRAGAgent:
         top_chunk = chunks[0]
         groq_key = os.getenv("GROQ_API_KEY", "").strip()
 
-        # Try Groq Cloud Llama 3 if key is provided
+        # Invoke Groq Cloud LLM
         if groq_key and groq_key != "your_groq_api_key_here":
             try:
                 from groq import Groq
                 client = Groq(api_key=groq_key)
-                model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+                model = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
                 
                 context_str = "\n\n".join([f"[{c['document_title']} - {c['section']}]:\n{c['content']}" for c in chunks])
                 system_prompt = (
-                    "You are the official Azentio AI HR Assistant. Answer the employee's query truthfully using ONLY the provided context.\n"
+                    "You are the official Azentio Autonomous AI HR Assistant.\n"
+                    "Answer the employee or HR query truthfully and accurately using ONLY the provided policy context.\n"
                     "Rules:\n"
                     "1. Strictly cite the official Document Title and Section.\n"
-                    "2. If the context does not contain the answer, say 'I cannot find that in official policy.' Never hallucinate policies or numbers.\n"
+                    "2. If the context does not contain the answer, say 'I cannot find that in the official Azentio policy handbooks.' Never hallucinate numbers or clauses.\n"
                     f"3. Tailor appropriately for an employee located in {employee.location} with role {employee.role}."
                 )
 
@@ -200,7 +211,7 @@ class PolicyRAGAgent:
                     model=model,
                     messages=[
                         {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": f"Context:\n{context_str}\n\nEmployee Query: {query}"}
+                        {"role": "user", "content": f"Policy Handbook Context:\n{context_str}\n\nEmployee Query: {query}"}
                     ],
                     temperature=0.1
                 )
@@ -211,7 +222,7 @@ class PolicyRAGAgent:
                     "citations": citations,
                     "escalation": "priya.sharma@azentio.com"
                 }
-            except Exception as e:
+            except Exception:
                 pass # Fallback to deterministic synthesis
 
         # Deterministic Grounded Synthesis (Zero-latency fallback)

@@ -69,11 +69,32 @@ class VectorStoreService:
                 from pinecone import Pinecone
                 pc = Pinecone(api_key=pinecone_key)
                 index_name = os.getenv("PINECONE_INDEX_NAME", "azentio-hr-policies")
-                # If Pinecone index exists, use it
                 index = pc.Index(index_name)
-                # Note: Pinecone vector search integration
-            except Exception as e:
-                # Graceful fallback to local semantic search
+                
+                # Semantic vector search using Pinecone Inference
+                emb_res = pc.inference.embed(
+                    model="multilingual-e5-large",
+                    inputs=[query],
+                    parameters={"input_type": "query", "truncate": "END"}
+                )
+                query_vec = emb_res[0].values
+                res = index.query(vector=query_vec, top_k=top_k, include_metadata=True)
+                
+                pinecone_chunks = []
+                for match in res.matches:
+                    meta = match.metadata or {}
+                    if meta.get("type") == "policy" or "document_title" in meta:
+                        pinecone_chunks.append({
+                            "document_id": meta.get("document_id", "POL-GEN"),
+                            "document_title": meta.get("document_title", "Azentio Policy"),
+                            "section": meta.get("section", "General"),
+                            "content": meta.get("content", ""),
+                            "filename": meta.get("filename", ""),
+                            "score": round(match.score, 3)
+                        })
+                if pinecone_chunks:
+                    return pinecone_chunks
+            except Exception:
                 pass
 
         # Robust Built-in Semantic Retriever
@@ -175,9 +196,30 @@ class VectorStoreService:
                 pc = Pinecone(api_key=pinecone_key)
                 index_name = os.getenv("PINECONE_INDEX_NAME", "azentio-hr-policies")
                 index = pc.Index(index_name)
-                # Note: Pinecone vector upsert with metadata
-            except Exception as e:
-                print(f"Pinecone progress upsert notice: {e}")
+
+                emb_res = pc.inference.embed(
+                    model="multilingual-e5-large",
+                    inputs=[content],
+                    parameters={"input_type": "passage", "truncate": "END"}
+                )
+                prog_vec = emb_res[0].values
+                index.upsert(vectors=[{
+                    "id": record_id,
+                    "values": prog_vec,
+                    "metadata": {
+                        "record_id": record_id,
+                        "candidate_id": candidate_id,
+                        "candidate_name": candidate_name,
+                        "document_type": document_type,
+                        "status": status,
+                        "reason": reason,
+                        "unblocked_tasks": unblocked_tasks or "None",
+                        "content": content[:900],
+                        "type": "progress"
+                    }
+                }])
+            except Exception:
+                pass
 
         return metadata
 
@@ -189,6 +231,40 @@ class VectorStoreService:
         top_k: int = 3
     ) -> List[Dict[str, Any]]:
         """Retrieve progress history and decision remarks for candidate."""
+        pinecone_key = os.getenv("PINECONE_API_KEY", "").strip()
+        if pinecone_key and pinecone_key != "your_pinecone_api_key_here":
+            try:
+                from pinecone import Pinecone
+                pc = Pinecone(api_key=pinecone_key)
+                index_name = os.getenv("PINECONE_INDEX_NAME", "azentio-hr-policies")
+                index = pc.Index(index_name)
+
+                emb_res = pc.inference.embed(
+                    model="multilingual-e5-large",
+                    inputs=[query],
+                    parameters={"input_type": "query", "truncate": "END"}
+                )
+                query_vec = emb_res[0].values
+                filter_dict = {"candidate_id": {"$eq": candidate_id}} if candidate_id else {"type": {"$eq": "progress"}}
+                res = index.query(vector=query_vec, top_k=top_k, include_metadata=True, filter=filter_dict)
+                pine_results = []
+                for match in res.matches:
+                    meta = match.metadata or {}
+                    pine_results.append({
+                        "record_id": match.id,
+                        "candidate_id": meta.get("candidate_id"),
+                        "candidate_name": meta.get("candidate_name"),
+                        "document_type": meta.get("document_type"),
+                        "status": meta.get("status"),
+                        "reason": meta.get("reason"),
+                        "content": meta.get("content"),
+                        "score": round(match.score, 3)
+                    })
+                if pine_results:
+                    return pine_results
+            except Exception:
+                pass
+
         records = cls._candidate_progress_memory
         if candidate_id:
             records = [r for r in records if r["candidate_id"] == candidate_id]

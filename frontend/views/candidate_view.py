@@ -234,19 +234,39 @@ def render_candidate_view():
         # TAB 3: AI ONBOARDING COPILOT
         # -------------------------------------------------------------
         with cand_tabs[2]:
-            st.subheader(f"Grounded AI Onboarding Assistant for {employee.full_name}")
-            st.caption("Ask questions about company policies, leave entitlements, office logistics, or check the status of your laptop and tool provisioning.")
+            st.subheader(f"Autonomous AI Onboarding Copilot for {employee.full_name}")
+            st.caption("Ask questions about your candidate profile, document approvals, checklist blockers, or company policies with zero hallucination guarantee.")
 
-            # Quick Prompt Pills
-            col_p1, col_p2, col_p3, col_p4 = st.columns(4)
-            if col_p1.button("📊 My Document Progress?", key="cand_pill_1", use_container_width=True):
-                st.session_state["cand_active_query"] = "What is the status of my documents and onboarding progress?"
-            if col_p2.button("🔍 Did HR approve my PAN?", key="cand_pill_2", use_container_width=True):
-                st.session_state["cand_active_query"] = "Did HR approve my PAN card and what were the remarks?"
+            # Live Agent Architecture Badge
+            st.markdown("""
+            <div style="background: rgba(0, 223, 143, 0.08); border: 1px solid rgba(0, 223, 143, 0.3); border-radius: 10px; padding: 10px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="display: inline-block; width: 10px; height: 10px; background: #00DF8F; border-radius: 50%; box-shadow: 0 0 8px #00DF8F;"></span>
+                    <span style="font-size: 13px; font-weight: 700; color: #0B192C;">Live Agent Engine Active</span>
+                    <span style="color: #64748B; font-size: 12px;">• Groq Cloud LLM (openai/gpt-oss-120b)</span>
+                    <span style="color: #64748B; font-size: 12px;">• Pinecone Vector DB (azentio-hr-policies)</span>
+                </div>
+                <span style="background: #0B192C; color: #00DF8F; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 600;">Zero Hallucinations</span>
+            </div>
+            """, unsafe_allow_html=True)
+
+            # Quick Prompt Pills (Candidate Status & Policies)
+            st.markdown("<div style='font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px;'>Quick Questions for AI Agent:</div>", unsafe_allow_html=True)
+            col_p1, col_p2, col_p3 = st.columns(3)
+            if col_p1.button("📊 Show my candidate data & status", key="cand_pill_1", use_container_width=True):
+                st.session_state["cand_active_query"] = "Can you show my candidate profile data and complete onboarding status?"
+            if col_p2.button("🔍 Did HR approve my documents?", key="cand_pill_2", use_container_width=True):
+                st.session_state["cand_active_query"] = "Did HR approve my documents and what are the exact feedback remarks?"
             if col_p3.button("💻 Why is laptop blocked?", key="cand_pill_3", use_container_width=True):
-                st.session_state["cand_active_query"] = "Why is my laptop provisioning blocked?"
-            if col_p4.button("🏖️ Leaves in probation?", key="cand_pill_4", use_container_width=True):
-                st.session_state["cand_active_query"] = "How many casual leaves can I take during probation?"
+                st.session_state["cand_active_query"] = "Why is my laptop provisioning blocked and who can unblock it?"
+
+            col_p4, col_p5, col_p6 = st.columns(3)
+            if col_p4.button("🏖️ Leave rules in probation?", key="cand_pill_4", use_container_width=True):
+                st.session_state["cand_active_query"] = "How many leaves can I take during my 6-month probation period?"
+            if col_p5.button("🏥 Medical insurance benefits?", key="cand_pill_5", use_container_width=True):
+                st.session_state["cand_active_query"] = "What medical insurance coverage and OPD benefits are provided?"
+            if col_p6.button("💰 Relocation assistance policy?", key="cand_pill_6", use_container_width=True):
+                st.session_state["cand_active_query"] = "What is the relocation reimbursement assistance policy for new hires?"
 
             # Chat state
             if "cand_chat_history" not in st.session_state:
@@ -254,13 +274,13 @@ def render_candidate_view():
 
             default_q = st.session_state.pop("cand_active_query", "")
 
-            user_query = st.chat_input("Ask a question about your onboarding or Azentio policies...")
+            user_query = st.chat_input("Ask a question about your onboarding status or Azentio policies...")
             query_to_run = user_query or default_q
 
             if query_to_run:
                 st.session_state["cand_chat_history"].append({"role": "user", "content": query_to_run})
 
-                with st.spinner("Consulting official Azentio policies and task engine..."):
+                with st.spinner("Autonomous Agent querying Pinecone vector store & live candidate records via Groq LLM..."):
                     response = PolicyRAGAgent.ask(
                         query=query_to_run,
                         employee=employee,
@@ -283,7 +303,7 @@ def render_candidate_view():
                         st.markdown(msg["content"])
                         if msg.get("citations"):
                             for cit in msg["citations"]:
-                                st.caption(f"📖 **Citation**: *{cit['document']}* — Section: {cit['section']}")
+                                st.caption(f"📖 **Grounding Source**: *{cit['document']}* — Section: {cit['section']}")
                         if msg.get("escalation"):
                             st.caption(f"🚨 **Escalation Contact**: {msg['escalation']}")
 

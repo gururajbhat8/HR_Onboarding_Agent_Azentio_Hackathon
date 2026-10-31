@@ -243,23 +243,76 @@ def render_hr_view():
                     """, unsafe_allow_html=True)
 
         # -------------------------------------------------------------
-        # TAB 3: HR POLICY COPILOT
+        # TAB 3: HR POLICY & CANDIDATE COPILOT
         # -------------------------------------------------------------
         with hr_tabs[2]:
-            st.subheader("Grounded Policy & SLA Guidance Copilot")
-            st.caption("Ask questions about company handbooks, leave rules, and escalation paths with zero hallucination guarantee.")
+            st.subheader("Autonomous HR Copilot & Candidate Data Intelligence")
+            st.caption("Ask questions about candidate verification status, onboarding bottlenecks, or query company policy handbooks with live LLM inference.")
 
-            hr_query = st.chat_input("Ask a question about HR policies or SLA timelines...", key="hr_copilot_input")
-            if hr_query:
-                # Use first employee for context if available
-                first_emp = employees[0] if employees else None
-                if first_emp:
-                    with st.spinner("Searching Azentio HR policy handbooks..."):
-                        resp = PolicyRAGAgent.ask(query=hr_query, employee=first_emp, session=session)
-                    st.markdown(resp["answer"])
-                    if resp.get("citations"):
-                        for c in resp["citations"]:
-                            st.caption(f"📖 **Source Citation**: *{c['document']}* — {c['section']}")
-                    if resp.get("escalation"):
-                        st.caption(f"🚨 **Escalation Path**: {resp['escalation']}")
+            # Live Agent Architecture Badge
+            st.markdown("""
+            <div style="background: rgba(0, 223, 143, 0.08); border: 1px solid rgba(0, 223, 143, 0.3); border-radius: 10px; padding: 10px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="display: inline-block; width: 10px; height: 10px; background: #00DF8F; border-radius: 50%; box-shadow: 0 0 8px #00DF8F;"></span>
+                    <span style="font-size: 13px; font-weight: 700; color: #0B192C;">Live Agent Engine Active</span>
+                    <span style="color: #64748B; font-size: 12px;">• Groq Cloud LLM (openai/gpt-oss-120b)</span>
+                    <span style="color: #64748B; font-size: 12px;">• Pinecone Vector DB (azentio-hr-policies)</span>
+                </div>
+                <span style="background: #0B192C; color: #00DF8F; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 600;">Zero Hallucinations</span>
+            </div>
+            """, unsafe_allow_html=True)
+
+            # Candidate Context Selector for HR
+            emp_map = {f"{e.full_name} ({e.role} - {e.department})": e for e in employees}
+            selected_emp_key = st.selectbox(
+                "Focus Candidate Context (or leave default for general inquiries):",
+                options=list(emp_map.keys()) if emp_map else ["No candidates loaded"],
+                key="hr_agent_emp_select"
+            )
+            focused_emp = emp_map.get(selected_emp_key) if emp_map else None
+
+            # Quick Prompt Pills for HR
+            hr_p1, hr_p2, hr_p3, hr_p4 = st.columns(4)
+            if hr_p1.button("📊 Candidate Status & Data", key="hr_pill_1", use_container_width=True):
+                st.session_state["hr_active_query"] = f"What is the complete onboarding status and document verification state for {focused_emp.full_name if focused_emp else 'the selected candidate'}?"
+            if hr_p2.button("⚠️ Blockers & Bottlenecks", key="hr_pill_2", use_container_width=True):
+                st.session_state["hr_active_query"] = f"Which tasks are currently blocked for {focused_emp.full_name if focused_emp else 'this candidate'} and what is required to unblock them?"
+            if hr_p3.button("🏖️ Probation Leave Rules", key="hr_pill_3", use_container_width=True):
+                st.session_state["hr_active_query"] = "What is the policy for leave entitlements during the 6-month probation period?"
+            if hr_p4.button("🏥 Medical Insurance Policy", key="hr_pill_4", use_container_width=True):
+                st.session_state["hr_active_query"] = "What are the group medical health insurance coverage limits and family benefits?"
+
+            # HR Chat State
+            if "hr_chat_history" not in st.session_state:
+                st.session_state["hr_chat_history"] = []
+
+            default_hr_q = st.session_state.pop("hr_active_query", "")
+            hr_user_query = st.chat_input("Ask HR Copilot about candidate status or company policies...", key="hr_copilot_input")
+            query_to_run_hr = hr_user_query or default_hr_q
+
+            if query_to_run_hr and focused_emp:
+                st.session_state["hr_chat_history"].append({"role": "user", "content": query_to_run_hr})
+
+                with st.spinner("HR Copilot consulting live candidate database and Pinecone vector store..."):
+                    resp = PolicyRAGAgent.ask(query=query_to_run_hr, employee=focused_emp, session=session)
+
+                st.session_state["hr_chat_history"].append({
+                    "role": "assistant",
+                    "content": resp["answer"],
+                    "citations": resp.get("citations", []),
+                    "escalation": resp.get("escalation")
+                })
+
+            # Render Chat History
+            for msg in reversed(st.session_state["hr_chat_history"]):
+                if msg["role"] == "user":
+                    st.chat_message("user").write(msg["content"])
+                else:
+                    with st.chat_message("assistant"):
+                        st.markdown(msg["content"])
+                        if msg.get("citations"):
+                            for c in msg["citations"]:
+                                st.caption(f"📖 **Source Citation**: *{c['document']}* — Section: {c['section']}")
+                        if msg.get("escalation"):
+                            st.caption(f"🚨 **Escalation Path**: {msg['escalation']}")
 

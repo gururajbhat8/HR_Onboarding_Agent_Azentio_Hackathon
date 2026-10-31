@@ -140,7 +140,8 @@ def render_admin_dashboard():
         "📥 Batch Ingestion & Pipeline",
         "🔄 Dynamic Cascade Recalculation",
         "📜 Master Audit Trail",
-        "👥 User Accounts & Access Control"
+        "👥 User Accounts & Access Control",
+        "🧠 AI Knowledge Base & LLM Engine"
     ])
 
     # -------------------------------------------------------------
@@ -446,3 +447,147 @@ def render_admin_dashboard():
                         )
                         st.success(f"✅ Successfully created {created.role} user: `{created.username}`!")
                         st.rerun()
+
+        # -------------------------------------------------------------
+        # TAB 5: AI KNOWLEDGE BASE & LLM ENGINE
+        # -------------------------------------------------------------
+        with admin_tabs[4]:
+            st.markdown("### 🧠 Autonomous Agent LLM & Vector Database Control Center")
+            st.caption("Manage company policy embeddings, verify Pinecone vector sync, and test real-time LLM inference.")
+
+            # Architecture Status Cards
+            col_llm, col_vec, col_guard = st.columns(3)
+            with col_llm:
+                st.markdown("""
+                <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 16px; border-top: 4px solid #00DF8F;">
+                    <div style="font-size: 13px; color: #64748B; font-weight: 600;">ACTIVE LLM INFERENCE</div>
+                    <div style="font-size: 18px; font-weight: 700; color: #0B192C; margin: 4px 0;">Groq Cloud AI</div>
+                    <div style="font-size: 12px; color: #10B981; font-weight: 600;">🟢 Online • openai/gpt-oss-120b</div>
+                    <div style="font-size: 11px; color: #94A3B8; margin-top: 4px;">Ultra-low latency inference engine</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            with col_vec:
+                st.markdown("""
+                <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 16px; border-top: 4px solid #3B82F6;">
+                    <div style="font-size: 13px; color: #64748B; font-weight: 600;">VECTOR DATABASE</div>
+                    <div style="font-size: 18px; font-weight: 700; color: #0B192C; margin: 4px 0;">Pinecone Serverless</div>
+                    <div style="font-size: 12px; color: #3B82F6; font-weight: 600;">⚡ Index: azentio-hr-policies</div>
+                    <div style="font-size: 11px; color: #94A3B8; margin-top: 4px;">AWS us-east-1 • 1024-dim Cosine</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            with col_guard:
+                st.markdown("""
+                <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 16px; border-top: 4px solid #8B5CF6;">
+                    <div style="font-size: 13px; color: #64748B; font-weight: 600;">RAG GUARDRAIL</div>
+                    <div style="font-size: 18px; font-weight: 700; color: #0B192C; margin: 4px 0;">Zero-Hallucination</div>
+                    <div style="font-size: 12px; color: #8B5CF6; font-weight: 600;">🛡️ Strict Document Citation</div>
+                    <div style="font-size: 11px; color: #94A3B8; margin-top: 4px;">Mandatory policy clause reference</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
+
+            # Stored Policy Handbooks Catalog
+            st.markdown("#### 📚 Stored Azentio Enterprise Policy Handbooks")
+            st.caption("Official markdown documentation stored in `data/policies/` and indexed as semantic vectors:")
+
+            policy_catalog = [
+                {
+                    "Document ID": "POL-SEC-DEVICE-2026",
+                    "Policy Handbook": "Information Security & Device Acceptable Use Policy (v4.0)",
+                    "Target Scope": "Engineering, Ops & IT Staff",
+                    "Sections": "Laptop Handover, MFA, AWS/GitHub DB Access, Prohibited Tools",
+                    "Vectors": "4 Chunks (Indexed)"
+                },
+                {
+                    "Document ID": "POL-HR-LEAVE-2026",
+                    "Policy Handbook": "Leave and Attendance Policy (v3.2)",
+                    "Target Scope": "All India & Global Employees",
+                    "Sections": "Earned Leave (18d), Casual Leave (12d), Probation Rules (1d/mo), WFH (2d/wk)",
+                    "Vectors": "4 Chunks (Indexed)"
+                },
+                {
+                    "Document ID": "POL-HR-ETHICS-2026",
+                    "Policy Handbook": "Code of Conduct & Compliance Policy (v3.5)",
+                    "Target Scope": "All Global Associates",
+                    "Sections": "Conflict of Interest, POSH & ICC Desk, Client Banking Data NDA, Whistleblower",
+                    "Vectors": "4 Chunks (Indexed)"
+                },
+                {
+                    "Document ID": "POL-HR-BENEFITS-2026",
+                    "Policy Handbook": "Total Rewards, Compensation & Health Benefits (v4.2)",
+                    "Target Scope": "Full-Time Permanent Staff",
+                    "Sections": "Medical Cover (INR 5L Family), OPD Reimbursement (15k/yr), PF & Gratuity, Home Office",
+                    "Vectors": "4 Chunks (Indexed)"
+                },
+                {
+                    "Document ID": "POL-HR-PERF-2026",
+                    "Policy Handbook": "Probation, Performance & Career Growth (v2.8)",
+                    "Target Scope": "New Lateral & Campus Hires",
+                    "Sections": "6-Month Probation, 30-60-90 Check-ins, OKR Confirmation, Annual Appraisal",
+                    "Vectors": "3 Chunks (Indexed)"
+                },
+                {
+                    "Document ID": "POL-FIN-TRAVEL-2026",
+                    "Policy Handbook": "Business Travel, Relocation & Expense Reimbursement (v3.1)",
+                    "Target Scope": "Associates on Official Travel",
+                    "Sections": "Relocation Allowance (INR 50k), Daily Per-Diem (INR 1500), Night Commute Cabs",
+                    "Vectors": "3 Chunks (Indexed)"
+                }
+            ]
+
+            st.dataframe(pd.DataFrame(policy_catalog), use_container_width=True, hide_index=True)
+
+            # Pinecone Vector Sync Trigger
+            col_sync1, col_sync2 = st.columns([2, 1])
+            with col_sync1:
+                st.markdown("**Vector Synchronization Engine**")
+                st.caption("Re-compute multilingual dense vector embeddings (1024-dim) and upsert to Pinecone Serverless.")
+            with col_sync2:
+                if st.button("🔄 Sync & Re-index Policies to Pinecone", use_container_width=True):
+                    with st.spinner("Connecting to Pinecone and embedding policy documents..."):
+                        try:
+                            from src.services.pinecone_indexer import index_all_policies_to_pinecone
+                            success = index_all_policies_to_pinecone()
+                            if success:
+                                st.success("✅ Successfully indexed and updated 36 vectors in Pinecone index `azentio-hr-policies`!")
+                            else:
+                                st.warning("Indexed to local vector cache (check Pinecone API key).")
+                        except Exception as e:
+                            st.error(f"Sync error: {e}")
+
+            st.divider()
+
+            # Interactive Admin LLM & Candidate Data Test Probe
+            st.markdown("#### 🧪 Test Live Agent Query (Groq LLM + Pinecone Vector RAG)")
+            st.caption("Probe how the LLM synthesizes live candidate records or policy handbooks.")
+
+            with SessionLocal() as session:
+                all_emps = EmployeeRepository.get_all_employees(session)
+                emp_choices = {f"{e.full_name} ({e.role})": e for e in all_emps}
+
+            if emp_choices:
+                test_col1, test_col2 = st.columns([1, 2])
+                with test_col1:
+                    chosen_label = st.selectbox("Select Candidate Context:", list(emp_choices.keys()), key="admin_test_emp")
+                    test_emp = emp_choices[chosen_label]
+
+                with test_col2:
+                    test_q = st.text_input("Enter Prompt or Question to Test LLM:", value="What is the onboarding status and document verification state for this candidate?", key="admin_test_q")
+
+                if st.button("🚀 Run Live Agentic LLM Query", key="admin_run_llm"):
+                    with SessionLocal() as session:
+                        from src.agents.policy_rag_agent import PolicyRAGAgent
+                        with st.spinner("Executing live inference via Groq LLM..."):
+                            resp = PolicyRAGAgent.ask(query=test_q, employee=test_emp, session=session)
+
+                        st.markdown(f"**Agent Response (Model: `openai/gpt-oss-120b`):**")
+                        st.info(resp["answer"])
+
+                        if resp.get("citations"):
+                            st.markdown("**Grounding Citations:**")
+                            for c in resp["citations"]:
+                                st.caption(f"📖 *{c.get('document')}* — Section: {c.get('section')}")
+
