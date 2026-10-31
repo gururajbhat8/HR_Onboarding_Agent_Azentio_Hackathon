@@ -172,3 +172,31 @@ class DocumentValidationAgent:
             "suggested_message": suggested_msg
         }
 
+    @classmethod
+    def evaluate_document(cls, file_path: str, expected_employee_name: str, doc_type: str = "Unknown") -> Dict[str, Any]:
+        """Convenience end-to-end evaluation: reads file, extracts text, parses entities, and evaluates."""
+        try:
+            with open(file_path, "rb") as f:
+                content = f.read()
+            filename = os.path.basename(file_path)
+            text = cls.extract_text_from_bytes(content, filename)
+            entities = cls.parse_entities(text)
+            if doc_type and doc_type != "Unknown":
+                entities["document_type"] = doc_type
+            result = cls.evaluate_against_employee(entities, expected_employee_name)
+            result["extracted"] = entities
+            result["findings"] = result.get("flags", [])
+            return result
+        except Exception as e:
+            return {
+                "document_type": doc_type,
+                "document_number": None,
+                "extracted_name": None,
+                "match_score": 0,
+                "is_expired": False,
+                "flags": [f"Error during automated evaluation: {str(e)}"],
+                "recommendation": "RECOMMEND_CORRECTION",
+                "suggested_message": f"Could not automatically parse document: {str(e)}"
+            }
+
+
