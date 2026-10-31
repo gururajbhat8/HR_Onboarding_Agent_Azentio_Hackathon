@@ -91,3 +91,17 @@ class UserModel(Base):
 
     employee = relationship("EmployeeModel", foreign_keys=[employee_id])
 
+class NotificationModel(Base):
+    """SQLAlchemy model for candidate progress notifications."""
+    __tablename__ = "candidate_notifications"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    employee_id = Column(String(36), ForeignKey("employees.id"), nullable=False)
+    title = Column(String(200), nullable=False)
+    message = Column(Text, nullable=False)
+    notification_type = Column(String(50), default="INFO") # SUCCESS, WARNING, INFO
+    is_read = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    employee = relationship("EmployeeModel", foreign_keys=[employee_id])
+

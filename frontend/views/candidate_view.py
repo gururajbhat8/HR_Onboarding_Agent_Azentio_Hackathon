@@ -2,7 +2,7 @@ import os
 import streamlit as st
 from datetime import datetime, date
 from src.database.session import SessionLocal
-from src.database.repository import EmployeeRepository, TaskRepository, DocumentRepository
+from src.database.repository import EmployeeRepository, TaskRepository, DocumentRepository, NotificationRepository
 from src.agents.doc_validation_agent import DocumentValidationAgent
 from src.agents.policy_rag_agent import PolicyRAGAgent
 
@@ -75,6 +75,18 @@ def render_candidate_view():
         # Progress bar
         st.markdown(f"**Your Onboarding Readiness Progress: {completed_count} of {total_tasks} requirements completed ({pct_completed}%)**")
         st.progress(pct_completed / 100.0)
+
+        # Candidate Progress Notifications (Real-time HR Decisions)
+        notifications = NotificationRepository.get_notifications_for_employee(session, employee.id)
+        if notifications:
+            with st.expander(f"🔔 Progress Updates & Verification Alerts ({len(notifications)})", expanded=True):
+                for notif in notifications[:4]:
+                    if notif.notification_type == "SUCCESS":
+                        st.success(f"**{notif.title}** ({notif.created_at.strftime('%Y-%m-%d %H:%M')})\n\n{notif.message}")
+                    elif notif.notification_type == "WARNING":
+                        st.warning(f"**{notif.title}** ({notif.created_at.strftime('%Y-%m-%d %H:%M')})\n\n{notif.message}")
+                    else:
+                        st.info(f"**{notif.title}** ({notif.created_at.strftime('%Y-%m-%d %H:%M')})\n\n{notif.message}")
 
         st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
 
@@ -226,13 +238,15 @@ def render_candidate_view():
             st.caption("Ask questions about company policies, leave entitlements, office logistics, or check the status of your laptop and tool provisioning.")
 
             # Quick Prompt Pills
-            col_p1, col_p2, col_p3 = st.columns(3)
-            if col_p1.button("🏖️ Leaves in probation?", key="cand_pill_1", use_container_width=True):
-                st.session_state["cand_active_query"] = "How many casual leaves can I take during probation?"
-            if col_p2.button("💻 Why is laptop blocked?", key="cand_pill_2", use_container_width=True):
+            col_p1, col_p2, col_p3, col_p4 = st.columns(4)
+            if col_p1.button("📊 My Document Progress?", key="cand_pill_1", use_container_width=True):
+                st.session_state["cand_active_query"] = "What is the status of my documents and onboarding progress?"
+            if col_p2.button("🔍 Did HR approve my PAN?", key="cand_pill_2", use_container_width=True):
+                st.session_state["cand_active_query"] = "Did HR approve my PAN card and what were the remarks?"
+            if col_p3.button("💻 Why is laptop blocked?", key="cand_pill_3", use_container_width=True):
                 st.session_state["cand_active_query"] = "Why is my laptop provisioning blocked?"
-            if col_p3.button("📍 Where is Bengaluru office?", key="cand_pill_3", use_container_width=True):
-                st.session_state["cand_active_query"] = "Where is the Bengaluru office located?"
+            if col_p4.button("🏖️ Leaves in probation?", key="cand_pill_4", use_container_width=True):
+                st.session_state["cand_active_query"] = "How many casual leaves can I take during probation?"
 
             # Chat state
             if "cand_chat_history" not in st.session_state:

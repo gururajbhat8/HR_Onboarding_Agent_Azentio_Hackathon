@@ -16,20 +16,95 @@ class PolicyRAGAgent:
         employee: EmployeeModel,
         session: Session
     ) -> Dict[str, Any]:
-        """Main agent entry point. Routes to Task Engine for status questions or Policy RAG for handbook questions."""
+        """Main agent entry point. Routes to Progress Engine, Task Engine, or Policy RAG."""
         q_lower = query.lower()
 
-        # 1. Check if user is asking about their personal checklist, blockers, or required documents
+        # 1. Check if user is asking about their personal document review progress or approval/rejection reasons
+        progress_keywords = [
+            "progress", "approved", "rejected", "correction", "feedback", 
+            "remarks", "pan", "aadhaar", "passport", "degree", "verification",
+            "did hr", "has hr", "my doc", "my submission"
+        ]
+        if any(k in q_lower for k in progress_keywords):
+            return cls._handle_progress_query(query, employee, session)
+
+        # 2. Check if user is asking about their checklist, blockers, or required documents
         task_keywords = [
-            "which document", "what document", "my document", "my task", 
+            "which document", "what document", "my task", 
             "checklist", "status", "laptop", "blocked", "provisioning", 
             "escalat", "pending", "why is", "prerequisite"
         ]
         if any(k in q_lower for k in task_keywords):
             return cls._handle_task_query(query, employee, session)
 
-        # 2. Otherwise route to Grounded Policy RAG
+        # 3. Otherwise route to Grounded Policy RAG
         return cls._handle_policy_query(query, employee)
+
+    @classmethod
+    def _handle_progress_query(cls, query: str, employee: EmployeeModel, session: Session) -> Dict[str, Any]:
+        """Answer queries about candidate onboarding progress and HR approval/rejection reasons using Pinecone & DB."""
+        from src.database.repository import DocumentRepository
+        # Check Pinecone / semantic store first
+        progress_chunks = VectorStoreService.query_candidate_progress(query, candidate_id=employee.id)
+        docs = DocumentRepository.get_documents_for_employee(session, employee.id)
+
+        if not docs and not progress_chunks:
+            return {
+                "answer": f"Hello {employee.full_name}, you have not submitted any verification documents yet. Please visit the **Submit My Documents** tab to upload your PAN, Aadhaar, Passport, or Degree Certificate.",
+                "citations": [{"document": "Azentio HR Decision Ledger", "section": "Document Staging"}],
+                "escalation": employee.manager_email
+            }
+
+        progress_lines = []
+        for d in docs:
+            emoji = "✅" if d.status == "Accepted" else ("⚠️" if d.status == "Correction Requested" else "⏳")
+            reason_txt = f" • *HR Decision Remarks*: **{d.rejection_reason}**" if d.rejection_reason else ""
+            timestamp_txt = f" (Reviewed: {d.verified_at.strftime('%Y-%m-%d %H:%M')})" if d.verified_at else f" (Uploaded: {d.uploaded_at.strftime('%Y-%m-%d') if d.uploaded_at else ''})"
+            progress_lines.append(f"{emoji} **{d.document_type}**: Status is **{d.status}**{timestamp_txt}{reason_txt}")
+
+        context_str = "\n".join(progress_lines)
+
+        groq_key = os.getenv("GROQ_API_KEY", "").strip()
+        if groq_key and groq_key != "your_groq_api_key_here":
+            try:
+                from groq import Groq
+                client = Groq(api_key=groq_key)
+                model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+                
+                system_prompt = (
+                    f"You are the official Azentio AI HR Assistant answering an onboarding progress query for candidate {employee.full_name} ({employee.role}).\n"
+                    "Use ONLY the provided HR progress ledger context.\n"
+                    "State the document verification status clearly, quote the exact HR remarks/reasons, and mention if downstream tasks (like laptop provisioning) are unblocked or pending."
+                )
+
+                response = client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": f"Candidate Progress Record:\n{context_str}\n\nCandidate Query: {query}"}
+                    ],
+                    temperature=0.1
+                )
+                return {
+                    "answer": response.choices[0].message.content,
+                    "citations": [{"document": "Pinecone Vector Store & Azentio HR Ledger", "section": "Progress Verification"}],
+                    "escalation": "priya.sharma@azentio.com"
+                }
+            except Exception:
+                pass
+
+        # Deterministic Grounded Synthesis
+        answer = (
+            f"Here is your official onboarding and document verification progress, **{employee.full_name}**:\n\n"
+            + "\n".join(progress_lines)
+            + f"\n\n💡 *Note*: Approved documents immediately unblock downstream IT provisioning requirements. For questions on correction remarks, contact HR Operations (**priya.sharma@azentio.com**)."
+        )
+
+        return {
+            "answer": answer,
+            "citations": [{"document": "Pinecone Vector Store & Azentio HR Ledger", "section": "Progress Verification"}],
+            "escalation": "priya.sharma@azentio.com"
+        }
 
     @classmethod
     def _handle_task_query(cls, query: str, employee: EmployeeModel, session: Session) -> Dict[str, Any]:

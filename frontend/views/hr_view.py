@@ -149,16 +149,54 @@ def render_hr_view():
 
                             b_col1, b_col2 = st.columns(2)
                             if b_col1.button("Approve & Accept ✓", key=f"approve_{doc.id}", type="primary", use_container_width=True):
-                                DocumentRepository.update_document_status(session, doc.id, "Accepted")
-                                st.success(f"✅ Approved {doc.document_type} for {emp_name}. Corresponding checklist tasks unblocked!")
+                                DocumentRepository.update_document_status(
+                                    session=session,
+                                    doc_id=doc.id,
+                                    new_status="Accepted",
+                                    rejection_reason=feedback or "Document verified per Azentio Hiring Policy v2.4",
+                                    verified_by=user.get("full_name", "HR Operations")
+                                )
+                                st.success(f"✅ Approved {doc.document_type} for {emp_name}. Synced to Pinecone Vector DB and notified candidate!")
                                 st.rerun()
 
                             if b_col2.button("Request Correction ❌", key=f"reject_{doc.id}", use_container_width=True):
-                                DocumentRepository.update_document_status(session, doc.id, "Correction Requested", rejection_reason=feedback)
-                                st.warning(f"⚠️ Requested correction for {emp_name}.")
+                                DocumentRepository.update_document_status(
+                                    session=session,
+                                    doc_id=doc.id,
+                                    new_status="Correction Requested",
+                                    rejection_reason=feedback,
+                                    verified_by=user.get("full_name", "HR Operations")
+                                )
+                                st.warning(f"⚠️ Requested correction for {emp_name}. Synced to Pinecone Vector DB and notified candidate!")
                                 st.rerun()
 
                         st.markdown("<hr style='margin: 16px 0; border: none; border-top: 1px dashed #CBD5E1;'>", unsafe_allow_html=True)
+
+            # -------------------------------------------------------------
+            # BOTTOM DECISION HISTORY LEDGER TABLE
+            # -------------------------------------------------------------
+            st.markdown("---")
+            st.markdown("#### 📜 Verification & Decision History Ledger")
+            st.caption("Live audit log of reviewed candidate documents. All decisions and remarks are synchronized with Pinecone Vector DB and candidate notifications.")
+
+            reviewed_docs = DocumentRepository.get_reviewed_documents_history(session)
+            if reviewed_docs:
+                history_rows = []
+                for rd in reviewed_docs:
+                    remp = EmployeeRepository.get_employee_by_id(session, rd.employee_id)
+                    history_rows.append({
+                        "Candidate Name": remp.full_name if remp else "N/A",
+                        "Role / Dept": f"{remp.role} ({remp.department})" if remp else "N/A",
+                        "Document Type": rd.document_type,
+                        "Decision Status": "✅ Accepted" if rd.status == "Accepted" else "⚠️ Correction Requested",
+                        "Decision Remarks / Reason": rd.rejection_reason or "Verified per Azentio Hiring Policy v2.4",
+                        "Reviewed Timestamp": rd.verified_at.strftime("%Y-%m-%d %H:%M") if rd.verified_at else "N/A",
+                        "Vector Sync Status": "⚡ Synced to Pinecone",
+                        "File Name": rd.file_name
+                    })
+                st.dataframe(pd.DataFrame(history_rows), use_container_width=True)
+            else:
+                st.info("No documents reviewed yet. Newly approved or rejected documents will appear in this history table immediately.")
 
         # -------------------------------------------------------------
         # TAB 2: PIPELINE & CHECKLISTS

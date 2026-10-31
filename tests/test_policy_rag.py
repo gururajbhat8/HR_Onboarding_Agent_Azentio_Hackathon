@@ -76,3 +76,45 @@ def test_policy_rag_agent_escalates_blocked_tasks():
         assert res["escalation"] is not None
         assert "@azentio.com" in res["escalation"]
 
+def test_policy_rag_answers_candidate_progress():
+    init_db()
+    with SessionLocal() as session:
+        from src.database.repository import DocumentRepository
+        uid = uuid.uuid4().hex[:6]
+        profile = EmployeeProfile(
+            employee_code=f"AZ-PROG-{uid}",
+            full_name="Progress Test Candidate",
+            email=f"prog.{uid}@candidate.com",
+            role="Software Engineer",
+            department="Engineering",
+            location="Bengaluru",
+            manager_email="ananya.roy@azentio.com",
+            joining_date=date(2026, 12, 10)
+        )
+        emp = EmployeeRepository.create_or_update_employee(session, profile)
+        doc = DocumentRepository.save_document(
+            session=session,
+            employee_id=emp.id,
+            document_type="Permanent Account Number (PAN)",
+            file_name="pan_card.pdf",
+            file_path="data/uploads/pan.pdf",
+            extracted_metadata={"match_score": 100}
+        )
+        DocumentRepository.update_document_status(
+            session=session,
+            doc_id=doc.id,
+            new_status="Accepted",
+            rejection_reason="Verified per Azentio Hiring Policy v2.4",
+            verified_by="Priya Sharma"
+        )
+
+        res = PolicyRAGAgent.ask(
+            query="What is the status of my PAN card and progress?",
+            employee=emp,
+            session=session
+        )
+
+        assert "Accepted" in res["answer"]
+        assert "Permanent Account Number (PAN)" in res["answer"]
+        assert "Azentio Hiring Policy" in res["answer"]
+

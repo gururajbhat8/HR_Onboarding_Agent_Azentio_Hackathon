@@ -2,7 +2,8 @@ from datetime import datetime
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import select, update
-from src.database.models import EmployeeModel, TaskModel, DocumentModel, AuditLogModel, UserModel
+from src.database.models import EmployeeModel, TaskModel, DocumentModel, AuditLogModel, UserModel, NotificationModel
+from src.services.vector_store import VectorStoreService
 from src.api.schemas.employee import EmployeeProfile
 from src.core.rule_engine import RuleEngine
 
@@ -213,19 +214,35 @@ class DocumentRepository:
         return list(session.execute(stmt).scalars().all())
 
     @staticmethod
-    def update_document_status(session: Session, doc_id: str, new_status: str, rejection_reason: Optional[str] = None) -> Optional[DocumentModel]:
-        """Update review status. If Accepted, automatically marks corresponding task completed and unblocks downstream tasks."""
+    def get_reviewed_documents_history(session: Session) -> List[DocumentModel]:
+        """Fetch all reviewed documents (Accepted or Correction Requested) for audit ledger."""
+        stmt = select(DocumentModel).where(DocumentModel.status.in_(["Accepted", "Correction Requested"])).order_by(DocumentModel.verified_at.desc(), DocumentModel.uploaded_at.desc())
+        return list(session.execute(stmt).scalars().all())
+
+    @staticmethod
+    def update_document_status(
+        session: Session,
+        doc_id: str,
+        new_status: str,
+        rejection_reason: Optional[str] = None,
+        verified_by: str = "HR Operations"
+    ) -> Optional[DocumentModel]:
+        """Update review status, create candidate notifications, and sync progress with Pinecone Vector Store."""
         stmt = select(DocumentModel).where(DocumentModel.id == doc_id)
         doc = session.execute(stmt).scalar_one_or_none()
         if not doc:
             return None
 
+        # Fetch employee for notifications & Pinecone vector indexing
+        emp = session.execute(select(EmployeeModel).where(EmployeeModel.id == doc.employee_id)).scalar_one_or_none()
+        emp_name = emp.full_name if emp else "Candidate"
+
         doc.status = new_status
         doc.rejection_reason = rejection_reason
+        doc.verified_at = datetime.utcnow()
+
+        unblocked_info = "None"
         if new_status == "Accepted":
-            doc.verified_at = datetime.utcnow()
-            
-            # Map doc_type to corresponding checklist item
             task_code_map = {
                 "Permanent Account Number (PAN)": "RULE-ALL-ID",
                 "Aadhaar Card": "RULE-ALL-ID",
@@ -234,7 +251,6 @@ class DocumentRepository:
             }
             target_code = task_code_map.get(doc.document_type, "RULE-ALL-ID")
 
-            # Mark corresponding onboarding task as completed
             task_stmt = select(TaskModel).where(
                 TaskModel.employee_id == doc.employee_id,
                 TaskModel.task_code == target_code
@@ -242,10 +258,95 @@ class DocumentRepository:
             task = session.execute(task_stmt).scalar_one_or_none()
             if task:
                 TaskRepository.update_task_status(session, task.id, "Completed")
+                unblocked_info = "Laptop & Workstation Provisioning unblocked (ready for IT)"
+
+            # Create candidate progress notification
+            notif = NotificationModel(
+                employee_id=doc.employee_id,
+                title=f"✅ Document Approved: {doc.document_type}",
+                message=f"Your {doc.document_type} was approved by HR ({verified_by}). Remarks: {rejection_reason or 'Verified per Azentio Hiring Policy v2.4'}. Downstream tasks unblocked!",
+                notification_type="SUCCESS"
+            )
+            session.add(notif)
+
+            # Audit trail
+            audit = AuditLogModel(
+                employee_id=doc.employee_id,
+                action_type="DOC_APPROVAL",
+                old_value="Under Review",
+                new_value="Accepted",
+                reason=rejection_reason or "Document verified per Azentio Hiring Policy v2.4"
+            )
+            session.add(audit)
+
+        elif new_status == "Correction Requested":
+            unblocked_info = "Downstream dependencies remain blocked pending corrected document submission"
+            # Create candidate progress notification
+            notif = NotificationModel(
+                employee_id=doc.employee_id,
+                title=f"⚠️ Correction Required: {doc.document_type}",
+                message=f"HR requested correction for your {doc.document_type}. Remarks: {rejection_reason}. Please re-upload a compliant document.",
+                notification_type="WARNING"
+            )
+            session.add(notif)
+
+            # Audit trail
+            audit = AuditLogModel(
+                employee_id=doc.employee_id,
+                action_type="DOC_CORRECTION_REQUEST",
+                old_value="Under Review",
+                new_value="Correction Requested",
+                reason=rejection_reason
+            )
+            session.add(audit)
 
         session.commit()
         session.refresh(doc)
+
+        # Sync progress update into Pinecone Vector Store and semantic memory
+        VectorStoreService.upsert_candidate_progress(
+            candidate_id=doc.employee_id,
+            candidate_name=emp_name,
+            document_type=doc.document_type,
+            status=new_status,
+            reason=rejection_reason or ("Document verified per Azentio Hiring Policy v2.4" if new_status == "Accepted" else "Discrepancy flagged"),
+            unblocked_tasks=unblocked_info,
+            verified_by=verified_by
+        )
+
         return doc
+
+class NotificationRepository:
+    """Repository handling candidate notifications."""
+
+    @staticmethod
+    def get_notifications_for_employee(session: Session, employee_id: str) -> List[NotificationModel]:
+        """Fetch all notifications for employee ordered by latest."""
+        stmt = select(NotificationModel).where(NotificationModel.employee_id == employee_id).order_by(NotificationModel.created_at.desc())
+        return list(session.execute(stmt).scalars().all())
+
+    @staticmethod
+    def create_notification(session: Session, employee_id: str, title: str, message: str, notification_type: str = "INFO") -> NotificationModel:
+        """Create new progress notification."""
+        notif = NotificationModel(
+            employee_id=employee_id,
+            title=title,
+            message=message,
+            notification_type=notification_type
+        )
+        session.add(notif)
+        session.commit()
+        session.refresh(notif)
+        return notif
+
+    @staticmethod
+    def mark_all_as_read(session: Session, employee_id: str) -> None:
+        """Mark all notifications as read."""
+        stmt = select(NotificationModel).where(NotificationModel.employee_id == employee_id)
+        notifs = list(session.execute(stmt).scalars().all())
+        for n in notifs:
+            n.is_read = True
+        session.commit()
 
 class AuditRepository:
     """Repository handling audit log ledger queries."""

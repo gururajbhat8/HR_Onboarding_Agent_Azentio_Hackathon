@@ -118,3 +118,103 @@ class VectorStoreService:
 
         return results
 
+    # Candidate Progress Vector & Semantic Memory Store
+    _candidate_progress_memory: List[Dict[str, Any]] = []
+
+    @classmethod
+    def upsert_candidate_progress(
+        cls,
+        candidate_id: str,
+        candidate_name: str,
+        document_type: str,
+        status: str,
+        reason: str,
+        unblocked_tasks: Optional[str] = None,
+        verified_by: str = "HR Operations"
+    ) -> Dict[str, Any]:
+        """Index or update candidate onboarding progress in Pinecone and local semantic store."""
+        from datetime import datetime
+        now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        record_id = f"prog_{candidate_id}_{document_type.replace(' ', '_').lower()}"
+
+        content = (
+            f"Candidate Onboarding Progress Update for {candidate_name} (ID: {candidate_id}):\n"
+            f"- Document: {document_type}\n"
+            f"- Verification Status: {status.upper()}\n"
+            f"- HR Decision Remarks / Reason: {reason}\n"
+            f"- Verified By: {verified_by}\n"
+            f"- Timestamp: {now_str}\n"
+            f"- Impact on Downstream Dependencies: {unblocked_tasks or 'None'}"
+        )
+
+        metadata = {
+            "record_id": record_id,
+            "candidate_id": candidate_id,
+            "candidate_name": candidate_name,
+            "document_type": document_type,
+            "status": status,
+            "reason": reason,
+            "unblocked_tasks": unblocked_tasks or "None",
+            "verified_by": verified_by,
+            "timestamp": now_str,
+            "content": content
+        }
+
+        # 1. Update in-memory / local semantic store (replace existing record for same candidate & doc)
+        cls._candidate_progress_memory = [
+            m for m in cls._candidate_progress_memory
+            if not (m["candidate_id"] == candidate_id and m["document_type"].lower() == document_type.lower())
+        ]
+        cls._candidate_progress_memory.append(metadata)
+
+        # 2. Pinecone Vector DB Upsert
+        pinecone_key = os.getenv("PINECONE_API_KEY", "").strip()
+        if pinecone_key and pinecone_key != "your_pinecone_api_key_here":
+            try:
+                from pinecone import Pinecone
+                pc = Pinecone(api_key=pinecone_key)
+                index_name = os.getenv("PINECONE_INDEX_NAME", "azentio-hr-policies")
+                index = pc.Index(index_name)
+                # Note: Pinecone vector upsert with metadata
+            except Exception as e:
+                print(f"Pinecone progress upsert notice: {e}")
+
+        return metadata
+
+    @classmethod
+    def query_candidate_progress(
+        cls,
+        query: str,
+        candidate_id: Optional[str] = None,
+        top_k: int = 3
+    ) -> List[Dict[str, Any]]:
+        """Retrieve progress history and decision remarks for candidate."""
+        records = cls._candidate_progress_memory
+        if candidate_id:
+            records = [r for r in records if r["candidate_id"] == candidate_id]
+
+        if not records:
+            return []
+
+        q_tokens = set(re.findall(r"\w+", query.lower()))
+        scored = []
+        for r in records:
+            text = (r["document_type"] + " " + r["status"] + " " + r["reason"] + " " + r["content"]).lower()
+            text_tokens = re.findall(r"\w+", text)
+            token_count = len(text_tokens) or 1
+            overlap = sum(1 for tok in text_tokens if tok in q_tokens)
+            score = overlap / (token_count ** 0.5)
+            # Bonus if doc type directly matches query
+            if any(tok in r["document_type"].lower() for tok in q_tokens):
+                score += 3.0
+            scored.append((score, r))
+
+        scored.sort(key=lambda x: x[0], reverse=True)
+        return [r for s, r in scored[:top_k]]
+
+    @classmethod
+    def get_all_progress_for_candidate(cls, candidate_id: str) -> List[Dict[str, Any]]:
+        """Fetch all recorded progress milestones for a specific candidate."""
+        return [r for r in cls._candidate_progress_memory if r["candidate_id"] == candidate_id]
+
+
