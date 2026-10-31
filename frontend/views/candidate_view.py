@@ -274,10 +274,27 @@ def render_candidate_view():
 
             default_q = st.session_state.pop("cand_active_query", "")
 
+            # ── Conversation History (chronological: oldest → newest) ──────────
+            chat_area = st.container()
+            with chat_area:
+                for msg in st.session_state["cand_chat_history"]:
+                    if msg["role"] == "user":
+                        st.chat_message("user").write(msg["content"])
+                    else:
+                        with st.chat_message("assistant"):
+                            st.markdown(msg["content"])
+                            if msg.get("citations"):
+                                for cit in msg["citations"]:
+                                    st.caption(f"📖 **Grounding Source**: *{cit['document']}* — Section: {cit['section']}")
+                            if msg.get("escalation"):
+                                st.caption(f"🚨 **Escalation Contact**: {msg['escalation']}")
+
+            # ── Input at the Bottom ───────────────────────────────────────────
             user_query = st.chat_input("Ask a question about your onboarding status or Azentio policies...")
             query_to_run = user_query or default_q
 
             if query_to_run:
+                # Show user message immediately
                 st.session_state["cand_chat_history"].append({"role": "user", "content": query_to_run})
 
                 with st.spinner("Autonomous Agent querying Pinecone vector store & live candidate records via Groq LLM..."):
@@ -293,17 +310,5 @@ def render_candidate_view():
                     "citations": response.get("citations", []),
                     "escalation": response.get("escalation")
                 })
-
-            # Display conversation
-            for msg in reversed(st.session_state["cand_chat_history"]):
-                if msg["role"] == "user":
-                    st.chat_message("user").write(msg["content"])
-                else:
-                    with st.chat_message("assistant"):
-                        st.markdown(msg["content"])
-                        if msg.get("citations"):
-                            for cit in msg["citations"]:
-                                st.caption(f"📖 **Grounding Source**: *{cit['document']}* — Section: {cit['section']}")
-                        if msg.get("escalation"):
-                            st.caption(f"🚨 **Escalation Contact**: {msg['escalation']}")
+                st.rerun()
 

@@ -417,6 +417,22 @@ def render_hr_view():
                 st.session_state["hr_chat_history"] = []
 
             default_hr_q = st.session_state.pop("hr_active_query", "")
+
+            # ── Conversation History (chronological: oldest → newest) ──────────
+            with st.container():
+                for msg in st.session_state["hr_chat_history"]:
+                    if msg["role"] == "user":
+                        st.chat_message("user").write(msg["content"])
+                    else:
+                        with st.chat_message("assistant"):
+                            st.markdown(msg["content"])
+                            if msg.get("citations"):
+                                for c in msg["citations"]:
+                                    st.caption(f"📖 **Source Citation**: *{c['document']}* — Section: {c['section']}")
+                            if msg.get("escalation"):
+                                st.caption(f"🚨 **Escalation Path**: {msg['escalation']}")
+
+            # ── Input at the Bottom ───────────────────────────────────────────
             hr_user_query = st.chat_input("Ask HR Copilot about candidate status or company policies...", key="hr_copilot_input")
             query_to_run_hr = hr_user_query or default_hr_q
 
@@ -432,17 +448,5 @@ def render_hr_view():
                     "citations": resp.get("citations", []),
                     "escalation": resp.get("escalation")
                 })
-
-            # Render Chat History
-            for msg in reversed(st.session_state["hr_chat_history"]):
-                if msg["role"] == "user":
-                    st.chat_message("user").write(msg["content"])
-                else:
-                    with st.chat_message("assistant"):
-                        st.markdown(msg["content"])
-                        if msg.get("citations"):
-                            for c in msg["citations"]:
-                                st.caption(f"📖 **Source Citation**: *{c['document']}* — Section: {c['section']}")
-                        if msg.get("escalation"):
-                            st.caption(f"🚨 **Escalation Path**: {msg['escalation']}")
+                st.rerun()
 

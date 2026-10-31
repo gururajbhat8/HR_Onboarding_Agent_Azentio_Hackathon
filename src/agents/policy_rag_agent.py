@@ -14,7 +14,7 @@ class PolicyRAGAgent:
 
     @classmethod
     def _call_groq_llm(cls, system_prompt: str, user_prompt: str) -> Optional[str]:
-        """Invoke Groq Cloud with primary model (qwen/qwen3.8-27b) and fallback (openai/gpt-oss-120b)."""
+        """Invoke Groq Cloud with primary model cascade. Returns None only if ALL models fail."""
         groq_key = os.getenv("GROQ_API_KEY", "").strip()
         if not groq_key or groq_key == "your_groq_api_key_here":
             return None
@@ -33,15 +33,15 @@ class PolicyRAGAgent:
                         {"role": "user", "content": user_prompt}
                     ],
                     temperature=0.1,
-                    max_tokens=800
+                    max_tokens=900
                 )
                 text = response.choices[0].message.content
                 if text and text.strip():
                     return text.strip()
-            except Exception as e:
-                # Log error and attempt next model
+                # Model returned empty — try next
+            except Exception:
                 continue
-        return None
+        return None  # All models failed — caller must use deterministic fallback
 
     @classmethod
     def ask(
@@ -67,21 +67,22 @@ class PolicyRAGAgent:
             llm_reply = cls._call_groq_llm(
                 system_prompt=(
                     f"You are the official Azentio Autonomous AI HR Onboarding Agent. "
-                    f"You are powered by Groq Cloud ({active_model}) for ultra-fast LPU inference "
-                    f"and Pinecone Serverless Vector DB (index: azentio-hr-policies) for enterprise policy retrieval. "
-                    f"State your model name clearly and summarize how you assist HR and candidates."
+                    f"You are powered by Groq Cloud LPU inference using model '{active_model}' "
+                    f"and Pinecone Serverless Vector Database (index: azentio-hr-policies) for enterprise policy retrieval. "
+                    f"When asked about your identity or capabilities, clearly state your model name ({active_model}) "
+                    f"and describe your three core capabilities: "
+                    f"(1) Real-time candidate onboarding & document status intelligence, "
+                    f"(2) Grounded company policy Q&A with zero hallucinations from official HR handbooks, "
+                    f"(3) Task dependency tracking and IT provisioning unblocking. "
+                    f"Be concise, professional, and use markdown formatting."
                 ),
                 user_prompt=query
             )
             if not llm_reply:
+                # Minimal deterministic fallback only if Groq API is truly unavailable
                 llm_reply = (
-                    f"I am the official **Azentio Autonomous AI HR Onboarding Agent**, powered by "
-                    f"**Groq Cloud (`{active_model}`)** for ultra-low latency inference and "
-                    f"**Pinecone Serverless Vector Database (`azentio-hr-policies`)** for enterprise policy retrieval.\n\n"
-                    f"### What I Can Do:\n"
-                    f"1. **Candidate Onboarding & Status Intelligence**: Check real-time progress, document review states, and unblock cross-functional dependencies (like IT laptop provisioning).\n"
-                    f"2. **Grounded Policy Guidance**: Answer company policy questions (Leaves, Medical Benefits, Devices, Relocation, POSH) with zero hallucinations.\n"
-                    f"3. **Human-in-the-Loop HR Decisions**: Track approval remarks, candidate notifications, and SLA compliance."
+                    f"I am the **Azentio Autonomous AI HR Onboarding Agent** — LLM service is temporarily unavailable. "
+                    f"Please check your GROQ_API_KEY configuration."
                 )
             return {
                 "answer": llm_reply,
@@ -213,17 +214,17 @@ class PolicyRAGAgent:
         )
 
         if not llm_reply:
-            # Deterministic synthesis fallback
+            # Deterministic synthesis fallback — only when Groq API is completely unavailable
             doc_bullets = "\n".join(doc_lines)
             blocker_bullets = "\n".join(blocked_lines) if blocked_lines else "None. No tasks currently blocked."
             llm_reply = (
-                f"### Onboarding Status Update for **{employee.full_name}**\n\n"
-                f"* **Role**: {employee.role} ({employee.grade}) • **Department**: {employee.department}\n"
-                f"* **Location**: {employee.location} • **Joining Date**: {employee.joining_date} ({countdown_str})\n"
-                f"* **Readiness Progress**: {pct_done}% ({len(completed)} of {total_tasks} milestones completed)\n\n"
-                f"#### Document Verification Ledger:\n{doc_bullets}\n\n"
-                f"#### Current Blockers & Action Required:\n{blocker_bullets}\n\n"
-                f"💡 *Contact HRBP **priya.sharma@azentio.com** or Manager **{employee.manager_email}** for escalations.*"
+                f"### Onboarding Status for **{employee.full_name}**\n\n"
+                f"* **Role**: {employee.role} ({employee.grade}) • **Department**: {employee.department} • **Location**: {employee.location}\n"
+                f"* **Joining Date**: {employee.joining_date} ({countdown_str})\n"
+                f"* **Readiness Progress**: {pct_done}% ({len(completed)} of {total_tasks} milestones)\n\n"
+                f"**Document Verification:**\n{doc_bullets}\n\n"
+                f"**Blockers:**\n{blocker_bullets}\n\n"
+                f"⚠️ *Live LLM unavailable — showing raw database records. Contact HR: priya.sharma@azentio.com*"
             )
 
         return {
