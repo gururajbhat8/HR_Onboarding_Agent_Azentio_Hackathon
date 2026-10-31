@@ -1,0 +1,55 @@
+[
+  {
+    "employee_code": "AZ-101",
+    "full_name": "Arjun Rao",
+    "email": "arjun.rao@candidate.com",
+    "phone": "+91 98765 43210",
+    "role": "Senior Software Engineer",
+    "grade": "L4",
+    "department": "Engineering",
+    "location": "Bengaluru",
+    "manager_email": "ananya.roy@azentio.com",
+    "joining_date": "2026-11-15",
+    "onboarding_status": "Initiated"
+  },
+  {
+    "employee_code": "AZ-102",
+    "full_name": "Sneha Kulkarni",
+    "email": "sneha.kulkarni@candidate.com",
+    "phone": "+91 98123 45678",
+    "role": "Product Manager",
+    "grade": "L3",
+    "department": "Product",
+    "location": "Mumbai",
+    "manager_email": "priya.sharma@azentio.com",
+    "joining_date": "2026-11-18",
+    "onboarding_status": "Initiated"
+  },
+  {
+    "employee_code": "AZ-103",
+    "full_name": "Rohan Deshmukh",
+    "email": "rohan.deshmukh@candidate.com",
+    "phone": "+91 97654 32109",
+    "role": "Financial Analyst",
+    "grade": "L2",
+    "department": "Finance",
+    "location": "Pune",
+    "manager_email": "suresh.nair@azentio.com",
+    "joining_date": "2026-11-20",
+    "onboarding_status": "Initiated"
+  },
+  {
+    "employee_code": "AZ-104",
+    "full_name": "Kavita Pillai",
+    "email": "kavita.pillai@candidate.com",
+    "phone": "+91 98450 12345",
+    "role": "DevOps Engineer",
+    "grade": "L3",
+    "department": "Engineering",
+    "location": "Bengaluru",
+    "manager_email": "ananya.roy@azentio.com",
+    "joining_date": "2026-11-25",
+    "onboarding_status": "Initiated"
+  }
+]
+

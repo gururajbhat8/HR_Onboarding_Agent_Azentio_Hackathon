@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    container_name: azentio-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:///./azentio_onboarding.db
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - PINECONE_API_KEY=${PINECONE_API_KEY}
+    volumes:
+      - data-volume:/app/data
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
+    container_name: azentio-frontend
+    ports:
+      - "8501:8501"
+    environment:
+      - BACKEND_API_URL=http://backend:8000
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  data-volume:

@@ -1,0 +1,122 @@
+/* ==============================================================================
+   AZENTIO ENTERPRISE DESIGN SYSTEM — STREAMLIT THEME
+   Brand Palette: Mint (#00DF8F), Navy (#0B192C), Slate Tint (#F8FAFC)
+   ============================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+html, body, [class*="css"] {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    color: #0F172A;
+}
+
+/* Header Navbar */
+.azentio-navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #0B192C;
+    padding: 16px 28px;
+    border-radius: 14px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 20px rgba(11, 25, 44, 0.08);
+}
+
+.azentio-logo-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.azentio-logo-text {
+    font-size: 26px;
+    font-weight: 700;
+    color: #FFFFFF;
+    letter-spacing: -0.5px;
+}
+
+.azentio-logo-text span {
+    color: #00DF8F;
+}
+
+.azentio-pill {
+    background-color: rgba(0, 223, 143, 0.15);
+    color: #00DF8F;
+    border: 1px solid #00DF8F;
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+/* Metric Cards */
+.azentio-metric-card {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 14px;
+    padding: 20px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.azentio-metric-card:hover {
+    border-color: #00DF8F;
+    transform: translateY(-2px);
+}
+
+.azentio-metric-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: #0B192C;
+    margin-top: 6px;
+}
+
+.azentio-metric-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #64748B;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Buttons */
+.stButton>button {
+    background-color: #00DF8F !important;
+    color: #0B192C !important;
+    font-weight: 700 !important;
+    border-radius: 30px !important;
+    border: none !important;
+    padding: 10px 24px !important;
+    box-shadow: 0 4px 12px rgba(0, 223, 143, 0.25) !important;
+    transition: all 0.2s ease-in-out !important;
+}
+
+.stButton>button:hover {
+    background-color: #00C47D !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 6px 16px rgba(0, 223, 143, 0.35) !important;
+}
+
+/* Status Badges */
+.status-pill {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.status-valid {
+    background-color: #DCFCE7;
+    color: #15803D;
+    border: 1px solid #86EFAC;
+}
+
+.status-error {
+    background-color: #FEE2E2;
+    color: #B91C1C;
+    border: 1px solid #FCA5A5;
+}
+

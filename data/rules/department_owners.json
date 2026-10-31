@@ -1,0 +1,33 @@
+[
+  {
+    "department": "Human Resources",
+    "owner_name": "Priya Sharma",
+    "owner_email": "priya.sharma@azentio.com",
+    "function": "Document Verification & Orientation"
+  },
+  {
+    "department": "Information Technology",
+    "owner_name": "Rahul Verma",
+    "owner_email": "rahul.verma@azentio.com",
+    "function": "Laptop, Email & Tool Provisioning"
+  },
+  {
+    "department": "Compliance",
+    "owner_name": "Deepak Mehta",
+    "owner_email": "deepak.mehta@azentio.com",
+    "function": "Background Check & InfoSec Sign-off"
+  },
+  {
+    "department": "Engineering",
+    "owner_name": "Ananya Roy",
+    "owner_email": "ananya.roy@azentio.com",
+    "function": "Engineering Lead & Dev Tool Access"
+  },
+  {
+    "department": "Finance",
+    "owner_name": "Suresh Nair",
+    "owner_email": "suresh.nair@azentio.com",
+    "function": "Payroll & Tax Declarations"
+  }
+]
+

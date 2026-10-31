@@ -1,0 +1,6 @@
+employee_code,full_name,email,phone,role,grade,department,location,manager_email,joining_date,onboarding_status
+AZ-101,Arjun Rao,arjun.rao@candidate.com,+91 98765 43210,Senior Software Engineer,L4,Engineering,Bengaluru,ananya.roy@azentio.com,2026-11-15,Initiated
+AZ-102,Sneha Kulkarni,sneha.kulkarni@candidate.com,+91 98123 45678,Product Manager,L3,Product,Mumbai,priya.sharma@azentio.com,2026-11-18,Initiated
+AZ-103,Rohan Deshmukh,rohan.deshmukh@candidate.com,+91 97654 32109,Financial Analyst,L2,Finance,Pune,suresh.nair@azentio.com,2026-11-20,Initiated
+AZ-104,Kavita Pillai,kavita.pillai@candidate.com,+91 98450 12345,DevOps Engineer,L3,Engineering,Bengaluru,ananya.roy@azentio.com,2026-11-25,Initiated
+

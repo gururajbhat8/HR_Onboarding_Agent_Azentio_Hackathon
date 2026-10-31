@@ -1,0 +1,7 @@
+employee_code,full_name,email,phone,role,grade,department,location,manager_email,joining_date,onboarding_status
+AZ-201,Vikram Seth,vikram.seth@candidate.com,+91 91234 56789,Frontend Engineer,L2,Engineering,Bengaluru,ananya.roy@azentio.com,2026-11-12,Initiated
+AZ-202,Amit Kumar,amit_invalid_email,+91 99887 76655,QA Engineer,L1,Engineering,Bengaluru,ananya.roy@azentio.com,2026-11-14,Initiated
+AZ-203,Ritu Mehra,ritu.mehra@candidate.com,+91 98765 11223,Business Analyst,L3,InvalidDept,Bengaluru,ananya.roy@azentio.com,2026-11-16,Initiated
+AZ-204,Sunil Joshi,sunil.joshi@candidate.com,+91 99881 22334,Backend Developer,L2,Engineering,Bengaluru,ananya.roy@azentio.com,31/11/2026,Initiated
+AZ-205,,missing.name@candidate.com,+91 98765 99887,Security Specialist,L3,Compliance,Bengaluru,deepak.mehta@azentio.com,2026-11-22,Initiated
+

@@ -1,0 +1,94 @@
+[
+  {
+    "rule_code": "RULE-ALL-ID",
+    "role_pattern": ".*",
+    "department": ".*",
+    "location": ".*",
+    "task_title": "Identity & Address Document Submission",
+    "category": "Document",
+    "assigned_department": "Human Resources",
+    "relative_offset_days": -7,
+    "is_mandatory": true,
+    "prerequisite_task": null,
+    "rule_origin": "Mandatory compliance check required for all enterprise employees before joining"
+  },
+  {
+    "rule_code": "RULE-ALL-DEGREE",
+    "role_pattern": ".*",
+    "department": ".*",
+    "location": ".*",
+    "task_title": "Education Degree & Certificates",
+    "category": "Document",
+    "assigned_department": "Human Resources",
+    "relative_offset_days": -5,
+    "is_mandatory": true,
+    "prerequisite_task": null,
+    "rule_origin": "Verification of educational qualifications per Azentio Hiring Policy v2.4"
+  },
+  {
+    "rule_code": "RULE-ALL-BGV",
+    "role_pattern": ".*",
+    "department": ".*",
+    "location": ".*",
+    "task_title": "Background Verification (BGV) Initiation",
+    "category": "Compliance",
+    "assigned_department": "Compliance",
+    "relative_offset_days": -4,
+    "is_mandatory": true,
+    "prerequisite_task": "RULE-ALL-ID",
+    "rule_origin": "Mandatory risk & security clearance required before system access is granted"
+  },
+  {
+    "rule_code": "RULE-IT-LAPTOP",
+    "role_pattern": ".*",
+    "department": ".*",
+    "location": ".*",
+    "task_title": "Laptop & Workstation Provisioning",
+    "category": "IT",
+    "assigned_department": "Information Technology",
+    "relative_offset_days": -3,
+    "is_mandatory": true,
+    "prerequisite_task": "RULE-ALL-ID",
+    "rule_origin": "Asset dispatch triggered automatically after HR document verification is approved"
+  },
+  {
+    "rule_code": "RULE-IT-EMAIL",
+    "role_pattern": ".*",
+    "department": ".*",
+    "location": ".*",
+    "task_title": "Email Account & Active Directory Setup",
+    "category": "IT",
+    "assigned_department": "Information Technology",
+    "relative_offset_days": -2,
+    "is_mandatory": true,
+    "prerequisite_task": "RULE-ALL-ID",
+    "rule_origin": "Azentio corporate domain account provisioning (@azentio.com)"
+  },
+  {
+    "rule_code": "RULE-TECH-DEVTOOLS",
+    "role_pattern": ".*(Engineer|Developer|Architect|DevOps).*",
+    "department": "Engineering",
+    "location": ".*",
+    "task_title": "Development Tools Access (GitHub, AWS, Docker)",
+    "category": "IT",
+    "assigned_department": "Information Technology",
+    "relative_offset_days": -1,
+    "is_mandatory": true,
+    "prerequisite_task": "RULE-IT-EMAIL",
+    "rule_origin": "Role-specific access required for software engineering professionals"
+  },
+  {
+    "rule_code": "RULE-POLICY-INFOSEC",
+    "role_pattern": ".*",
+    "department": ".*",
+    "location": ".*",
+    "task_title": "Information Security Policy Acknowledgement",
+    "category": "Policy",
+    "assigned_department": "Compliance",
+    "relative_offset_days": 0,
+    "is_mandatory": true,
+    "prerequisite_task": "RULE-IT-EMAIL",
+    "rule_origin": "Required Day-1 compliance sign-off prior to accessing production systems"
+  }
+]
+
