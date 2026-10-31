@@ -35,6 +35,24 @@ def test_user_seeding_and_authentication():
             email="custom.candidate@candidate.com"
         )
         assert custom.id is not None
-        auth_custom = UserRepository.authenticate(session, "test.candidate.custom", "candidate123", expected_role="Candidate")
-        assert auth_custom is not None
+        # Test updating user details
+        updated = UserRepository.update_user(
+            session=session,
+            user_id=custom.id,
+            full_name="Updated Candidate Name",
+            password="newpassword456"
+        )
+        assert updated is not None
+        assert updated.full_name == "Updated Candidate Name"
+        assert UserRepository.authenticate(session, "test.candidate.custom", "newpassword456") is not None
+
+        # Test deleting user
+        deleted = UserRepository.delete_user(session, custom.id)
+        assert deleted is True
+        assert UserRepository.get_user_by_id(session, custom.id) is None
+
+        # Primary admin deletion must fail safely
+        admin_del = UserRepository.delete_user(session, admin.id)
+        assert admin_del is False
+        assert UserRepository.get_user_by_id(session, admin.id) is not None
 

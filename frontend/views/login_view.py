@@ -7,7 +7,7 @@ def render_login_view():
     init_db()
 
     st.markdown("""
-    <div style="text-align: center; margin-top: 15px; margin-bottom: 25px;">
+    <div style="text-align: center; margin-top: 20px; margin-bottom: 25px;">
         <div style="font-size: 34px; font-weight: 800; color: #0B192C; letter-spacing: -0.5px;">
             azentio<span style="color: #00DF8F;">.ai</span>
         </div>
@@ -30,55 +30,50 @@ def render_login_view():
             format_func=lambda x: f"🛡️ Admin" if x == "Admin" else (f"💼 HR Operations" if x == "HR" else f"👤 Candidate")
         )
 
-        st.markdown("<div style='background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; padding: 26px 28px; box-shadow: 0 4px 18px rgba(11,25,44,0.06); margin-top: 10px;'>", unsafe_allow_html=True)
+        with st.container(border=True):
+            if selected_role == "Admin":
+                st.markdown("<div style='font-size: 18px; font-weight: 700; color: #0B192C;'>Administrator Login</div>", unsafe_allow_html=True)
+                st.caption("Access the batch ingestion engine, dynamic cascade recalculations, and system audit trail.")
+                user_placeholder = "Enter admin username or email"
 
-        if selected_role == "Admin":
-            st.markdown("<div style='font-size: 18px; font-weight: 700; color: #0B192C; margin-bottom: 4px;'>Administrator Login</div>", unsafe_allow_html=True)
-            st.caption("Access the batch ingestion engine, dynamic cascade recalculations, and system audit trail.")
-            user_placeholder = "Enter admin username or email"
+            elif selected_role == "HR":
+                st.markdown("<div style='font-size: 18px; font-weight: 700; color: #0B192C;'>HR Operations Login</div>", unsafe_allow_html=True)
+                st.caption("Access the document verification queue (HITL), candidate pipeline, and SLA management.")
+                user_placeholder = "e.g. hr1 or priya.sharma@azentio.com"
 
-        elif selected_role == "HR":
-            st.markdown("<div style='font-size: 18px; font-weight: 700; color: #0B192C; margin-bottom: 4px;'>HR Operations Login</div>", unsafe_allow_html=True)
-            st.caption("Access the document verification queue (HITL), candidate pipeline, and SLA management.")
-            user_placeholder = "e.g. hr1 or priya.sharma@azentio.com"
+            else:
+                st.markdown("<div style='font-size: 18px; font-weight: 700; color: #0B192C;'>Candidate Portal Login</div>", unsafe_allow_html=True)
+                st.caption("Access your personalized onboarding checklist, document uploads, and policy assistant.")
+                user_placeholder = "e.g. arjun.rao or arjun.rao@candidate.com"
 
-        else:
-            st.markdown("<div style='font-size: 18px; font-weight: 700; color: #0B192C; margin-bottom: 4px;'>Candidate Portal Login</div>", unsafe_allow_html=True)
-            st.caption("Access your personalized onboarding checklist, document uploads, and policy assistant.")
-            user_placeholder = "e.g. arjun.rao or arjun.rao@candidate.com"
+            with st.form("azentio_enterprise_login_form"):
+                input_username = st.text_input("Username or Corporate Email:", placeholder=user_placeholder)
+                input_password = st.text_input("Password:", placeholder="••••••••", type="password")
+                
+                st.markdown("<div style='height: 6px;'></div>", unsafe_allow_html=True)
+                submitted = st.form_submit_button(f"Sign In as {selected_role} →", use_container_width=True)
 
-        st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+                if submitted:
+                    if not input_username.strip() or not input_password.strip():
+                        st.error("Please enter both username/email and password.")
+                    else:
+                        with SessionLocal() as session:
+                            user = UserRepository.authenticate(
+                                session=session,
+                                username=input_username.strip(),
+                                password=input_password.strip(),
+                                expected_role=selected_role
+                            )
 
-        with st.form("azentio_enterprise_login_form"):
-            input_username = st.text_input("Username or Corporate Email:", placeholder=user_placeholder)
-            input_password = st.text_input("Password:", placeholder="••••••••", type="password")
-            
-            st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
-            submitted = st.form_submit_button(f"Sign In as {selected_role} →", use_container_width=True)
-
-            if submitted:
-                if not input_username.strip() or not input_password.strip():
-                    st.error("Please enter both username/email and password.")
-                else:
-                    with SessionLocal() as session:
-                        user = UserRepository.authenticate(
-                            session=session,
-                            username=input_username.strip(),
-                            password=input_password.strip(),
-                            expected_role=selected_role
-                        )
-
-                        if user:
-                            st.session_state["user"] = {
-                                "id": user.id,
-                                "username": user.username,
-                                "full_name": user.full_name,
-                                "role": user.role,
-                                "email": user.email,
-                                "employee_id": user.employee_id
-                            }
-                            st.rerun()
-                        else:
-                            st.error(f"Authentication failed: Invalid credentials for {selected_role} access.")
-
-        st.markdown("</div>", unsafe_allow_html=True)
+                            if user:
+                                st.session_state["user"] = {
+                                    "id": user.id,
+                                    "username": user.username,
+                                    "full_name": user.full_name,
+                                    "role": user.role,
+                                    "email": user.email,
+                                    "employee_id": user.employee_id
+                                }
+                                st.rerun()
+                            else:
+                                st.error(f"Authentication failed: Invalid credentials for {selected_role} access.")

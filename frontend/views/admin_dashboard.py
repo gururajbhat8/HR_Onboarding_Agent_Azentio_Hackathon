@@ -81,6 +81,7 @@ def _fetch_users():
         users = UserRepository.get_all_users(session)
         return [
             {
+                "ID": u.id,
                 "Username": u.username,
                 "Role": u.role,
                 "Full Name": u.full_name,
@@ -89,6 +90,25 @@ def _fetch_users():
             }
             for u in users
         ]
+
+def _delete_user(user_id):
+    """Delete user from database."""
+    init_db()
+    with SessionLocal() as session:
+        return UserRepository.delete_user(session, user_id)
+
+def _update_user(user_id, full_name, email, role, password):
+    """Update user account details."""
+    init_db()
+    with SessionLocal() as session:
+        return UserRepository.update_user(
+            session=session,
+            user_id=user_id,
+            full_name=full_name,
+            email=email,
+            role=role,
+            password=password
+        )
 
 def render_admin_dashboard():
     """Renders the Admin Perspective Dashboard."""
@@ -333,7 +353,68 @@ def render_admin_dashboard():
             u3.metric("Candidate Accounts", cand_count)
 
             st.markdown("#### Registered User Ledger")
-            st.dataframe(df_users, use_container_width=True)
+            # Clean display without internal UUID column
+            display_cols = ["Username", "Role", "Full Name", "Email", "Created At"]
+            st.dataframe(df_users[display_cols], use_container_width=True)
+
+            # -------------------------------------------------------------
+            # USER MODIFICATION & DELETION CONSOLE
+            # -------------------------------------------------------------
+            st.markdown("---")
+            st.markdown("#### ✏️ Modify or Delete Registered User Account")
+            st.caption("Select any registered user to update their credentials, role, or delete their account.")
+
+            user_options = {
+                f"{u['Full Name']} (@{u['Username']} • {u['Role']})": u
+                for u in users_list
+            }
+            selected_user_lbl = st.selectbox(
+                "Select User Account to Manage:",
+                options=list(user_options.keys()),
+                key="manage_user_selectbox"
+            )
+            target_user = user_options[selected_user_lbl]
+            is_primary_admin = target_user["Username"].lower() == "admin"
+
+            m_col1, m_col2 = st.columns(2)
+            with m_col1:
+                edit_full_name = st.text_input("Full Name:", value=target_user["Full Name"], key=f"edit_fn_{target_user['ID']}")
+                edit_email = st.text_input("Email Address:", value=target_user["Email"], key=f"edit_em_{target_user['ID']}")
+
+            with m_col2:
+                if is_primary_admin:
+                    edit_role = st.selectbox("Role:", ["Admin"], disabled=True, key=f"edit_rl_{target_user['ID']}")
+                else:
+                    role_list = ["HR", "Candidate"]
+                    role_idx = role_list.index(target_user["Role"]) if target_user["Role"] in role_list else 0
+                    edit_role = st.selectbox("Role:", role_list, index=role_idx, key=f"edit_rl_{target_user['ID']}")
+                
+                edit_pass = st.text_input("Reset Password (leave empty to keep unchanged):", placeholder="Enter new password to reset", type="password", key=f"edit_pw_{target_user['ID']}")
+
+            btn_col1, btn_col2 = st.columns([1, 1])
+            with btn_col1:
+                if st.button("Save Account Changes 💾", type="primary", use_container_width=True, key=f"save_btn_{target_user['ID']}"):
+                    _update_user(
+                        user_id=target_user["ID"],
+                        full_name=edit_full_name,
+                        email=edit_email,
+                        role=edit_role,
+                        password=edit_pass if edit_pass.strip() else None
+                    )
+                    st.success(f"✅ Successfully updated user '{target_user['Username']}'!")
+                    st.rerun()
+
+            with btn_col2:
+                if is_primary_admin:
+                    st.button("Delete User Account 🗑️", disabled=True, help="The primary Administrator account cannot be deleted.", use_container_width=True)
+                else:
+                    if st.button(f"Delete '{target_user['Username']}' Account 🗑️", use_container_width=True, key=f"del_btn_{target_user['ID']}"):
+                        success = _delete_user(target_user["ID"])
+                        if success:
+                            st.warning(f"🗑️ User account '{target_user['Username']}' has been deleted from the database.")
+                            st.rerun()
+                        else:
+                            st.error("Failed to delete user account.")
 
         # Form to add new HR or Candidate
         st.markdown("---")

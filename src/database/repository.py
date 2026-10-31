@@ -343,6 +343,55 @@ class UserRepository:
         session.refresh(user)
         return user
 
+    @staticmethod
+    def get_user_by_id(session: Session, user_id: str) -> Optional[UserModel]:
+        """Fetch user by primary key ID."""
+        stmt = select(UserModel).where(UserModel.id == user_id)
+        return session.execute(stmt).scalar_one_or_none()
+
+    @staticmethod
+    def delete_user(session: Session, user_id: str) -> bool:
+        """Delete user account with safety check against primary admin."""
+        stmt = select(UserModel).where(UserModel.id == user_id)
+        user = session.execute(stmt).scalar_one_or_none()
+        if not user or user.username.lower() == "admin":
+            return False
+        session.delete(user)
+        session.commit()
+        return True
+
+    @staticmethod
+    def update_user(
+        session: Session,
+        user_id: str,
+        full_name: Optional[str] = None,
+        email: Optional[str] = None,
+        role: Optional[str] = None,
+        password: Optional[str] = None
+    ) -> Optional[UserModel]:
+        """Modify existing user account details."""
+        stmt = select(UserModel).where(UserModel.id == user_id)
+        user = session.execute(stmt).scalar_one_or_none()
+        if not user:
+            return None
+
+        if full_name is not None and full_name.strip():
+            user.full_name = full_name.strip()
+        if email is not None and email.strip():
+            user.email = email.strip()
+        if role is not None and role.strip():
+            # Prevent demoting the primary admin
+            if user.username.lower() == "admin":
+                user.role = "Admin"
+            else:
+                user.role = role.strip()
+        if password is not None and password.strip():
+            user.password = password.strip()
+
+        session.commit()
+        session.refresh(user)
+        return user
+
     @classmethod
     def seed_default_users(cls, session: Session) -> None:
         """Seed default admin, HR team, and candidate users if not present."""
