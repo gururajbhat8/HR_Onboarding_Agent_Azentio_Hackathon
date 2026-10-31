@@ -243,7 +243,7 @@ def render_candidate_view():
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <span style="display: inline-block; width: 10px; height: 10px; background: #00DF8F; border-radius: 50%; box-shadow: 0 0 8px #00DF8F;"></span>
                     <span style="font-size: 13px; font-weight: 700; color: #0B192C;">Live Agent Engine Active</span>
-                    <span style="color: #64748B; font-size: 12px;">• Groq Cloud LLM (openai/gpt-oss-120b)</span>
+                    <span style="color: #64748B; font-size: 12px;">• Groq Cloud LLM (qwen/qwen3.8-27b)</span>
                     <span style="color: #64748B; font-size: 12px;">• Pinecone Vector DB (azentio-hr-policies)</span>
                 </div>
                 <span style="background: #0B192C; color: #00DF8F; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 600;">Zero Hallucinations</span>

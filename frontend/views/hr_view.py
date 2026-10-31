@@ -1,8 +1,10 @@
+import os
 import streamlit as st
 import pandas as pd
 from datetime import datetime
 from src.database.session import SessionLocal
-from src.database.repository import EmployeeRepository, TaskRepository, DocumentRepository
+from src.database.repository import EmployeeRepository, TaskRepository, DocumentRepository, UserRepository
+from src.services.ingestion_service import IngestionService
 from src.agents.policy_rag_agent import PolicyRAGAgent
 
 def render_hr_view():
@@ -59,15 +61,143 @@ def render_hr_view():
         st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
 
         hr_tabs = st.tabs([
+            "📥 Upload Candidate Roster",
             "🛡️ Document Verification Queue (HITL)",
             "📋 Candidate Pipeline & Checklists",
-            "🤖 HR Policy & SLA Copilot"
+            "🤖 HR Policy & Candidate Copilot"
         ])
 
         # -------------------------------------------------------------
-        # TAB 1: HR VERIFICATION CONSOLE (HITL)
+        # TAB 1: UPLOAD CANDIDATE ROSTER (HR BATCH INGESTION)
         # -------------------------------------------------------------
         with hr_tabs[0]:
+            st.subheader("📥 Candidate List Ingestion & Validation")
+            st.caption("Upload new hire batches from Excel (.xlsx), CSV, or JSON spreadsheets. The system validates required schema and auto-provisions onboarding checklists.")
+
+            col_up1, col_up2 = st.columns([2, 1])
+            with col_up1:
+                st.markdown("#### Upload Candidate Roster Document")
+                hr_uploaded_file = st.file_uploader(
+                    "Choose an Excel (.xlsx) or CSV candidate roster:",
+                    type=["xlsx", "xls", "csv", "json"],
+                    help="Mandatory fields: full_name, email, role, department, location, manager_email, joining_date",
+                    key="hr_candidate_file_uploader"
+                )
+
+                if hr_uploaded_file is not None:
+                    file_content = hr_uploaded_file.read()
+                    ingest_res = IngestionService.parse_file(file_content, hr_uploaded_file.name)
+
+                    if ingest_res.valid_count > 0:
+                        for valid_emp in ingest_res.employees:
+                            saved_emp = EmployeeRepository.create_or_update_employee(session, valid_emp)
+                            TaskRepository.generate_and_save_checklist(session, saved_emp.id)
+                            # Create login user account if needed
+                            default_username = valid_emp.email.split("@")[0].lower()
+                            if not UserRepository.get_user_by_username(session, default_username):
+                                UserRepository.create_user(
+                                    session=session,
+                                    username=default_username,
+                                    password="candidate123",
+                                    role="Candidate",
+                                    full_name=valid_emp.full_name,
+                                    email=valid_emp.email,
+                                    employee_id=saved_emp.id
+                                )
+
+                    st.session_state["hr_last_ingestion"] = ingest_res
+                    st.success(f"✅ Processed '{hr_uploaded_file.name}': **{ingest_res.valid_count} candidates ingested**, {ingest_res.error_count} errors.")
+                    st.rerun()
+
+            with col_up2:
+                st.markdown("#### Instant Dataset Shortcuts")
+                st.caption("Quickly load prepared corporate candidate cohorts for evaluation:")
+
+                if st.button("📊 Load 50-Candidate Excel Roster", key="hr_load_50_btn", use_container_width=True):
+                    excel_path = os.path.join(os.path.dirname(__file__), "..", "..", "data", "sample_profiles", "candidates_50_employees.xlsx")
+                    if os.path.exists(excel_path):
+                        with open(excel_path, "rb") as f:
+                            ingest_res = IngestionService.parse_file(f.read(), "candidates_50_employees.xlsx")
+                        for valid_emp in ingest_res.employees:
+                            saved_emp = EmployeeRepository.create_or_update_employee(session, valid_emp)
+                            TaskRepository.generate_and_save_checklist(session, saved_emp.id)
+                            u_name = valid_emp.email.split("@")[0].lower()
+                            if not UserRepository.get_user_by_username(session, u_name):
+                                UserRepository.create_user(
+                                    session=session,
+                                    username=u_name,
+                                    password="candidate123",
+                                    role="Candidate",
+                                    full_name=valid_emp.full_name,
+                                    email=valid_emp.email,
+                                    employee_id=saved_emp.id
+                                )
+                        st.session_state["hr_last_ingestion"] = ingest_res
+                        st.success(f"✅ Successfully ingested all 50 candidates from Excel!")
+                        st.rerun()
+
+                if st.button("📄 Load Sample JSON Roster", key="hr_load_json_btn", use_container_width=True):
+                    json_path = os.path.join(os.path.dirname(__file__), "..", "..", "data", "sample_profiles", "candidates.json")
+                    if os.path.exists(json_path):
+                        with open(json_path, "rb") as f:
+                            ingest_res = IngestionService.parse_file(f.read(), "candidates.json")
+                        for valid_emp in ingest_res.employees:
+                            saved_emp = EmployeeRepository.create_or_update_employee(session, valid_emp)
+                            TaskRepository.generate_and_save_checklist(session, saved_emp.id)
+                            u_name = valid_emp.email.split("@")[0].lower()
+                            if not UserRepository.get_user_by_username(session, u_name):
+                                UserRepository.create_user(
+                                    session=session,
+                                    username=u_name,
+                                    password="candidate123",
+                                    role="Candidate",
+                                    full_name=valid_emp.full_name,
+                                    email=valid_emp.email,
+                                    employee_id=saved_emp.id
+                                )
+                        st.session_state["hr_last_ingestion"] = ingest_res
+                        st.success(f"✅ Ingested candidates from JSON!")
+                        st.rerun()
+
+            # Ingestion Validation Summary
+            if "hr_last_ingestion" in st.session_state:
+                res = st.session_state["hr_last_ingestion"]
+                st.markdown("---")
+                col_m1, col_m2, col_m3 = st.columns(3)
+                col_m1.metric("Total Records Evaluated", res.total_records)
+                col_m2.metric("Valid Candidates Ingested", res.valid_count)
+                col_m3.metric("Validation Errors", res.error_count)
+
+                if res.errors:
+                    with st.expander(f"⚠️ View {len(res.errors)} Validation Issues", expanded=True):
+                        err_data = [{"Row": e.row_number, "Field": e.field, "Error Details": e.message} for e in res.errors]
+                        st.dataframe(pd.DataFrame(err_data), use_container_width=True)
+
+            # Active Roster Table
+            st.markdown("#### 👥 Active Candidate Directory")
+            all_roster = EmployeeRepository.get_all_employees(session)
+            if all_roster:
+                roster_data = [
+                    {
+                        "Code": e.employee_code,
+                        "Full Name": e.full_name,
+                        "Role": e.role,
+                        "Grade": e.grade,
+                        "Department": e.department,
+                        "Location": e.location,
+                        "Joining Date": str(e.joining_date),
+                        "Manager": e.manager_email
+                    }
+                    for e in all_roster
+                ]
+                st.dataframe(pd.DataFrame(roster_data), use_container_width=True, hide_index=True)
+            else:
+                st.info("No candidates loaded yet. Upload an Excel or CSV file above.")
+
+        # -------------------------------------------------------------
+        # TAB 2: HR VERIFICATION CONSOLE (HITL)
+        # -------------------------------------------------------------
+        with hr_tabs[1]:
             st.subheader("Human-in-the-Loop Document Verification Queue")
             st.caption("AI pre-screens uploaded candidate proofs and highlights discrepancies or expiry. HR retains final compliance authority.")
 
@@ -199,14 +329,14 @@ def render_hr_view():
                 st.info("No documents reviewed yet. Newly approved or rejected documents will appear in this history table immediately.")
 
         # -------------------------------------------------------------
-        # TAB 2: PIPELINE & CHECKLISTS
+        # TAB 3: PIPELINE & CHECKLISTS
         # -------------------------------------------------------------
-        with hr_tabs[1]:
+        with hr_tabs[2]:
             st.subheader("Candidate Pipeline & Role Checklists")
             st.caption("Inspect live tasks, track bottlenecks, and view unblocking cascades across all candidates.")
 
             if not employees:
-                st.info("No candidates in the system. Use the Admin portal to ingest candidates.")
+                st.info("No candidates in the system. Use the Ingest tab above to upload candidates.")
             else:
                 emp_options = {f"{e.full_name} ({e.role} - {e.department})": e.id for e in employees}
                 selected_label = st.selectbox("Select Candidate to Inspect:", options=list(emp_options.keys()))
@@ -243,9 +373,9 @@ def render_hr_view():
                     """, unsafe_allow_html=True)
 
         # -------------------------------------------------------------
-        # TAB 3: HR POLICY & CANDIDATE COPILOT
+        # TAB 4: HR POLICY & CANDIDATE COPILOT
         # -------------------------------------------------------------
-        with hr_tabs[2]:
+        with hr_tabs[3]:
             st.subheader("Autonomous HR Copilot & Candidate Data Intelligence")
             st.caption("Ask questions about candidate verification status, onboarding bottlenecks, or query company policy handbooks with live LLM inference.")
 
@@ -255,7 +385,7 @@ def render_hr_view():
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <span style="display: inline-block; width: 10px; height: 10px; background: #00DF8F; border-radius: 50%; box-shadow: 0 0 8px #00DF8F;"></span>
                     <span style="font-size: 13px; font-weight: 700; color: #0B192C;">Live Agent Engine Active</span>
-                    <span style="color: #64748B; font-size: 12px;">• Groq Cloud LLM (openai/gpt-oss-120b)</span>
+                    <span style="color: #64748B; font-size: 12px;">• Groq Cloud LLM (qwen/qwen3.8-27b)</span>
                     <span style="color: #64748B; font-size: 12px;">• Pinecone Vector DB (azentio-hr-policies)</span>
                 </div>
                 <span style="background: #0B192C; color: #00DF8F; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 600;">Zero Hallucinations</span>
@@ -293,7 +423,7 @@ def render_hr_view():
             if query_to_run_hr and focused_emp:
                 st.session_state["hr_chat_history"].append({"role": "user", "content": query_to_run_hr})
 
-                with st.spinner("HR Copilot consulting live candidate database and Pinecone vector store..."):
+                with st.spinner("HR Copilot querying Groq LLM & Pinecone vector store for accurate data..."):
                     resp = PolicyRAGAgent.ask(query=query_to_run_hr, employee=focused_emp, session=session)
 
                 st.session_state["hr_chat_history"].append({

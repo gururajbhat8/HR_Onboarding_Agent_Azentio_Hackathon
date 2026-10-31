@@ -4,13 +4,44 @@ from typing import Dict, Any, List, Optional
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 from src.database.models import EmployeeModel, TaskModel
-from src.database.repository import TaskRepository, DocumentRepository
+from src.database.repository import TaskRepository, DocumentRepository, EmployeeRepository
 from src.services.vector_store import VectorStoreService
 
 load_dotenv()
 
 class PolicyRAGAgent:
-    """Autonomous AI HR Assistant providing grounded policy answers, candidate data inspection, and onboarding progress."""
+    """Autonomous AI HR Assistant providing grounded policy answers, candidate data intelligence, and onboarding tracking."""
+
+    @classmethod
+    def _call_groq_llm(cls, system_prompt: str, user_prompt: str) -> Optional[str]:
+        """Invoke Groq Cloud with primary model (qwen/qwen3.8-27b) and fallback (openai/gpt-oss-120b)."""
+        groq_key = os.getenv("GROQ_API_KEY", "").strip()
+        if not groq_key or groq_key == "your_groq_api_key_here":
+            return None
+
+        primary_model = os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b")
+        fallback_model = os.getenv("FALLBACK_MODEL", "openai/gpt-oss-120b")
+
+        for model_to_try in [primary_model, fallback_model, "openai/gpt-oss-20b"]:
+            try:
+                from groq import Groq
+                client = Groq(api_key=groq_key)
+                response = client.chat.completions.create(
+                    model=model_to_try,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    temperature=0.1,
+                    max_tokens=800
+                )
+                text = response.choices[0].message.content
+                if text and text.strip():
+                    return text.strip()
+            except Exception as e:
+                # Log error and attempt next model
+                continue
+        return None
 
     @classmethod
     def ask(
@@ -19,160 +50,191 @@ class PolicyRAGAgent:
         employee: EmployeeModel,
         session: Session
     ) -> Dict[str, Any]:
-        """Main agent routing entry point. Intelligently routes between Candidate Data/Status Engine and Policy RAG."""
-        q_lower = query.lower()
+        """Intelligent agentic router that resolves entities, intent, and dispatches to appropriate reasoning engine."""
+        q_clean = query.strip()
+        q_lower = q_clean.lower()
 
-        # 1. Candidate status, profile data, documents, approvals, or blocker queries
-        candidate_data_keywords = [
-            "status", "progress", "candidate data", "my data", "profile", "onboarding status",
-            "approved", "rejected", "correction", "feedback", "remarks", "pan", "aadhaar", 
-            "passport", "degree", "verification", "did hr", "has hr", "my doc", "my submission",
-            "checklist", "laptop", "blocked", "provisioning", "prerequisite", "which document",
-            "what document", "my task", "milestone", "who is my manager"
+        # ------------------------------------------------------------------
+        # 1. INTENT: Agent Identity & LLM Model Capabilities
+        # ------------------------------------------------------------------
+        identity_patterns = [
+            "which llm", "what llm", "which model", "what model", 
+            "who are you", "what are you", "what can you do", "introduce yourself",
+            "your capabilities", "how do you work", "help me"
         ]
-        if any(k in q_lower for k in candidate_data_keywords):
-            return cls._handle_candidate_status_and_data_query(query, employee, session)
+        if any(p in q_lower for p in identity_patterns):
+            active_model = os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b")
+            llm_reply = cls._call_groq_llm(
+                system_prompt=(
+                    f"You are the official Azentio Autonomous AI HR Onboarding Agent. "
+                    f"You are powered by Groq Cloud ({active_model}) for ultra-fast LPU inference "
+                    f"and Pinecone Serverless Vector DB (index: azentio-hr-policies) for enterprise policy retrieval. "
+                    f"State your model name clearly and summarize how you assist HR and candidates."
+                ),
+                user_prompt=query
+            )
+            if not llm_reply:
+                llm_reply = (
+                    f"I am the official **Azentio Autonomous AI HR Onboarding Agent**, powered by "
+                    f"**Groq Cloud (`{active_model}`)** for ultra-low latency inference and "
+                    f"**Pinecone Serverless Vector Database (`azentio-hr-policies`)** for enterprise policy retrieval.\n\n"
+                    f"### What I Can Do:\n"
+                    f"1. **Candidate Onboarding & Status Intelligence**: Check real-time progress, document review states, and unblock cross-functional dependencies (like IT laptop provisioning).\n"
+                    f"2. **Grounded Policy Guidance**: Answer company policy questions (Leaves, Medical Benefits, Devices, Relocation, POSH) with zero hallucinations.\n"
+                    f"3. **Human-in-the-Loop HR Decisions**: Track approval remarks, candidate notifications, and SLA compliance."
+                )
+            return {
+                "answer": llm_reply,
+                "citations": [{"document": f"Groq LPU Engine ({active_model})", "section": "Agentic Architecture"}],
+                "escalation": "priya.sharma@azentio.com"
+            }
 
-        # 2. Otherwise route to Grounded Policy RAG
-        return cls._handle_policy_query(query, employee)
+        # ------------------------------------------------------------------
+        # 2. INTENT: Candidate Entity Search (e.g. "update in Aditi verma")
+        # ------------------------------------------------------------------
+        # Check if the query specifically references an employee in the system
+        target_employee = employee
+        all_emps = EmployeeRepository.get_all_employees(session)
+        for cand in all_emps:
+            cand_first = cand.full_name.split()[0].lower() if cand.full_name else ""
+            cand_full = cand.full_name.lower() if cand.full_name else ""
+            if (cand_full and cand_full in q_lower) or (cand_first and len(cand_first) > 3 and cand_first in q_lower.split()):
+                target_employee = cand
+                break
+
+        # Check candidate status & progress indicators
+        candidate_indicators = [
+            "update", "status", "progress", "candidate", "profile", "document", "submission",
+            "pan", "aadhaar", "passport", "degree", "laptop", "blocked", "approved", "rejected",
+            "correction", "feedback", "remarks", "checklist", "joining", "manager", "when will",
+            "did hr", "has hr", "unblock"
+        ]
+        is_candidate_query = (target_employee != employee) or any(k in q_lower for k in candidate_indicators)
+
+        # Also check if it's explicitly a policy question
+        policy_indicators = [
+            "leave", "casual leave", "earned leave", "probation", "sick leave",
+            "insurance", "medical", "opd", "hospital", "coverage", "benefits",
+            "relocation", "travel", "per-diem", "cab", "uber", "expense",
+            "laptop policy", "mfa", "password", "github access", "aws access", "device",
+            "posh", "sexual harassment", "ethics", "whistleblower", "conduct", "nda",
+            "appraisal", "notice period", "wfh", "work from home", "hybrid"
+        ]
+        is_policy_query = any(k in q_lower for k in policy_indicators)
+
+        # Route priority:
+        if is_candidate_query and not (is_policy_query and target_employee == employee):
+            return cls._handle_candidate_status_query(query, target_employee, session)
+
+        if is_policy_query:
+            return cls._handle_policy_query(query, target_employee)
+
+        # Default fallback: check policies first; if no relevant chunk, handle candidate query
+        return cls._handle_policy_query(query, target_employee)
 
     @classmethod
-    def _handle_candidate_status_and_data_query(
+    def _handle_candidate_status_query(
         cls,
         query: str,
         employee: EmployeeModel,
         session: Session
     ) -> Dict[str, Any]:
-        """Answer queries about candidate profile data, onboarding status, document approvals, and task blockers using live DB & LLM."""
+        """Synthesize candidate status, document verification ledger, and task blockers using live DB & Groq LLM."""
         from datetime import date
         today = date.today()
         days_left = (employee.joining_date - today).days if employee.joining_date else 0
         countdown_str = f"{days_left} days remaining until joining" if days_left > 0 else "Joining date reached"
 
-        # 1. Retrieve Candidate Profile Data
-        profile_data = (
-            f"- Full Name: {employee.full_name}\n"
-            f"- Employee ID: {employee.id}\n"
-            f"- Role & Grade: {employee.role} ({employee.grade})\n"
-            f"- Department: {employee.department}\n"
-            f"- Office Location: {employee.location}\n"
-            f"- Official Joining Date: {employee.joining_date} ({countdown_str})\n"
-            f"- Reporting Manager: {employee.manager_email}\n"
-            f"- Email: {employee.email}"
+        # 1. Profile Context
+        profile_info = (
+            f"Candidate Name: {employee.full_name}\n"
+            f"Employee Code: {employee.employee_code}\n"
+            f"Role & Grade: {employee.role} ({employee.grade})\n"
+            f"Department: {employee.department}\n"
+            f"Location: {employee.location}\n"
+            f"Joining Date: {employee.joining_date} ({countdown_str})\n"
+            f"Reporting Manager: {employee.manager_email}\n"
+            f"Official Email: {employee.email}"
         )
 
-        # 2. Retrieve Submitted Documents & HR Decision Ledger
+        # 2. Document Verification History
         docs = DocumentRepository.get_documents_for_employee(session, employee.id)
-        # Also check Pinecone progress vectors
-        progress_chunks = VectorStoreService.query_candidate_progress(query, candidate_id=employee.id)
-
-        doc_summary_lines = []
+        doc_lines = []
         if docs:
             for d in docs:
-                status_symbol = "Accepted (Approved)" if d.status == "Accepted" else ("Correction Requested" if d.status == "Correction Requested" else "Pending Review")
-                reason_txt = f", HR Remarks/Reason: '{d.rejection_reason}'" if d.rejection_reason else ", HR Remarks: 'Verified and compliant'"
-                meta = d.extracted_metadata or {}
-                score_txt = f", AI Confidence Score: {meta.get('match_score', 0)}%"
-                doc_summary_lines.append(f"• Document: {d.document_type} (File: {d.file_name}) -> Status: {status_symbol}{score_txt}{reason_txt}")
+                status_str = "Accepted" if d.status == "Accepted" else ("Correction Requested" if d.status == "Correction Requested" else "Pending Review")
+                reason_str = f" [HR Remarks: {d.rejection_reason}]" if d.rejection_reason else " [Compliant]"
+                doc_lines.append(f"- {d.document_type} ({d.file_name}): {status_str}{reason_str}")
         else:
-            doc_summary_lines.append("• No documents uploaded yet. (Requires PAN, Aadhaar/Passport, Degree Certificate).")
+            doc_lines.append("- No documents submitted yet.")
 
-        # 3. Retrieve Live Onboarding Tasks & Dependencies
+        # 3. Tasks & Bottlenecks
         tasks = TaskRepository.get_tasks_for_employee(session, employee.id)
         if not tasks:
             tasks = TaskRepository.generate_and_save_checklist(session, employee.id)
 
-        task_summary_lines = []
+        completed = [t for t in tasks if t.status == "Completed"]
+        blocked = [t for t in tasks if t.status == "Blocked"]
+        pending = [t for t in tasks if t.status == "Pending"]
+
         blocked_lines = []
-        completed_count = 0
-        for t in tasks:
-            if t.status == "Completed":
-                completed_count += 1
-                task_summary_lines.append(f"• [COMPLETED] {t.title} (Category: {t.category})")
-            elif t.status == "Blocked":
-                prereq_task = next((pt for pt in tasks if pt.task_code == t.prerequisite_task), None)
-                prereq_name = prereq_task.title if prereq_task else (t.prerequisite_task or "Prerequisite Verification")
-                prereq_owner = prereq_task.owner_email if prereq_task else "hr.ops@azentio.com"
-                blocked_lines.append(f"• [BLOCKED] {t.title} -> Waiting on prerequisite: '{prereq_name}' (Action Owner: {prereq_owner})")
-                task_summary_lines.append(f"• [BLOCKED] {t.title} -> Waiting on '{prereq_name}'")
-            else:
-                task_summary_lines.append(f"• [PENDING ACTION] {t.title} (Due: {t.due_date}, Owner: {t.owner_email})")
+        for bt in blocked:
+            prereq = next((t for t in tasks if t.task_code == bt.prerequisite_task), None)
+            prereq_title = prereq.title if prereq else (bt.prerequisite_task or "Identity Verification")
+            prereq_owner = prereq.owner_email if prereq else "priya.sharma@azentio.com"
+            blocked_lines.append(f"- {bt.title} is BLOCKED on '{prereq_title}' (Owner: {prereq_owner})")
 
         total_tasks = len(tasks)
-        readiness_pct = int((completed_count / total_tasks * 100)) if total_tasks > 0 else 0
+        pct_done = int((len(completed) / total_tasks * 100)) if total_tasks > 0 else 0
 
-        # Construct comprehensive live context for LLM
-        live_context = (
-            f"=== CANDIDATE PROFILE DATA ===\n{profile_data}\n\n"
-            f"=== DOCUMENT VERIFICATION & HR DECISION LEDGER ===\n" + "\n".join(doc_summary_lines) + "\n\n"
-            f"=== ONBOARDING TASKS & READINESS ({readiness_pct}% Complete, {completed_count}/{total_tasks} tasks done) ===\n"
-            + "\n".join(task_summary_lines) + "\n\n"
-            + (f"=== ACTIVE BOTTLENECK DEPENDENCIES ===\n" + "\n".join(blocked_lines) if blocked_lines else "=== ACTIVE BOTTLENECK DEPENDENCIES ===\nNone. No tasks currently blocked.")
+        candidate_record_text = (
+            f"=== CANDIDATE PROFILE ===\n{profile_info}\n\n"
+            f"=== ONBOARDING PROGRESS ===\n"
+            f"Progress: {len(completed)}/{total_tasks} milestones completed ({pct_done}% readiness)\n"
+            f"Completed Tasks: {', '.join([t.title for t in completed]) if completed else 'None'}\n"
+            f"Pending Tasks: {', '.join([t.title for t in pending]) if pending else 'None'}\n\n"
+            f"=== DOCUMENT VERIFICATION LEDGER ===\n" + "\n".join(doc_lines) + "\n\n"
+            f"=== ACTIVE BLOCKERS & BOTTLENECKS ===\n" + ("\n".join(blocked_lines) if blocked_lines else "None. No tasks currently blocked.")
         )
 
-        groq_key = os.getenv("GROQ_API_KEY", "").strip()
-        if groq_key and groq_key != "your_groq_api_key_here":
-            try:
-                from groq import Groq
-                client = Groq(api_key=groq_key)
-                model = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
+        system_prompt = (
+            f"You are the official Azentio Autonomous AI HR Assistant.\n"
+            f"Answer the user's question about candidate {employee.full_name} clearly and concisely using the provided live records.\n"
+            f"Rules:\n"
+            f"1. State the candidate's role, department, and joining date.\n"
+            f"2. Summarize document verification statuses (Accepted, Correction Requested, Pending) and quote HR feedback.\n"
+            f"3. Highlight any blocked tasks (especially Laptop Provisioning) and state the prerequisite needed to unblock it.\n"
+            f"4. Format cleanly with markdown bullet points and emojis."
+        )
 
-                system_prompt = (
-                    "You are the official Azentio Autonomous AI HR Onboarding Agent.\n"
-                    "Your role is to answer questions from candidates or HR personnel regarding candidate data, onboarding progress, document verification status, and task dependencies.\n"
-                    "Rules:\n"
-                    "1. Rely strictly on the provided Candidate Profile, Document Verification Ledger, and Onboarding Tasks data.\n"
-                    "2. Quote exact document statuses (e.g., Accepted, Correction Requested) and specific HR remarks/feedback.\n"
-                    "3. If tasks (like Laptop Provisioning) are blocked, explain exactly what prerequisite document or approval is needed and who the action owner is.\n"
-                    "4. Be encouraging, clear, professional, and well-structured using markdown bullet points."
-                )
+        llm_reply = cls._call_groq_llm(
+            system_prompt=system_prompt,
+            user_prompt=f"Candidate Records:\n{candidate_record_text}\n\nUser Question: {query}"
+        )
 
-                response = client.chat.completions.create(
-                    model=model,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": f"Live Candidate Records:\n{live_context}\n\nUser Question: {query}"}
-                    ],
-                    temperature=0.1
-                )
-                return {
-                    "answer": response.choices[0].message.content,
-                    "citations": [{"document": "Azentio Live Candidate Database & Decision Ledger", "section": f"Profile & Status Records ({employee.id})"}],
-                    "escalation": employee.manager_email or "priya.sharma@azentio.com"
-                }
-            except Exception:
-                pass # Graceful fallback to deterministic synthesis
-
-        # Deterministic Grounded Synthesis Fallback
-        answer_parts = [
-            f"### Onboarding Status & Candidate Data for **{employee.full_name}**",
-            f"- **Role**: {employee.role} ({employee.grade}) • **Department**: {employee.department}",
-            f"- **Location**: {employee.location} • **Joining Date**: {employee.joining_date} ({countdown_str})",
-            f"- **Readiness Progress**: **{readiness_pct}%** ({completed_count} of {total_tasks} milestones completed)",
-            "",
-            "#### Document Verification & HR Decisions:",
-            "\n".join(doc_summary_lines),
-            ""
-        ]
-
-        if blocked_lines:
-            answer_parts.extend([
-                "#### ⚠️ Action Required / Blocked Dependencies:",
-                "\n".join(blocked_lines),
-                ""
-            ])
-
-        answer_parts.append(f"💡 *For questions on remarks, contact HR Operations (**priya.sharma@azentio.com**) or Manager (**{employee.manager_email}**).*")
+        if not llm_reply:
+            # Deterministic synthesis fallback
+            doc_bullets = "\n".join(doc_lines)
+            blocker_bullets = "\n".join(blocked_lines) if blocked_lines else "None. No tasks currently blocked."
+            llm_reply = (
+                f"### Onboarding Status Update for **{employee.full_name}**\n\n"
+                f"* **Role**: {employee.role} ({employee.grade}) • **Department**: {employee.department}\n"
+                f"* **Location**: {employee.location} • **Joining Date**: {employee.joining_date} ({countdown_str})\n"
+                f"* **Readiness Progress**: {pct_done}% ({len(completed)} of {total_tasks} milestones completed)\n\n"
+                f"#### Document Verification Ledger:\n{doc_bullets}\n\n"
+                f"#### Current Blockers & Action Required:\n{blocker_bullets}\n\n"
+                f"💡 *Contact HRBP **priya.sharma@azentio.com** or Manager **{employee.manager_email}** for escalations.*"
+            )
 
         return {
-            "answer": "\n".join(answer_parts),
-            "citations": [{"document": "Azentio Live Candidate Database & Decision Ledger", "section": f"Profile & Status Records ({employee.id})"}],
+            "answer": llm_reply,
+            "citations": [{"document": "Azentio Live Candidate Database & Decision Ledger", "section": f"Profile & Status ({employee.employee_code})"}],
             "escalation": employee.manager_email or "priya.sharma@azentio.com"
         }
 
     @classmethod
     def _handle_policy_query(cls, query: str, employee: EmployeeModel) -> Dict[str, Any]:
-        """Perform grounded retrieval over official handbooks via Pinecone Vector DB and synthesize with Groq LLM."""
+        """Perform grounded semantic retrieval over official handbooks via Pinecone Vector DB and synthesize with Groq LLM."""
         chunks = VectorStoreService.query_policies(
             query=query,
             department=employee.department,
@@ -188,53 +250,34 @@ class PolicyRAGAgent:
             }
 
         top_chunk = chunks[0]
-        groq_key = os.getenv("GROQ_API_KEY", "").strip()
+        context_str = "\n\n".join([f"[{c['document_title']} - {c['section']}]:\n{c['content']}" for c in chunks])
 
-        # Invoke Groq Cloud LLM
-        if groq_key and groq_key != "your_groq_api_key_here":
-            try:
-                from groq import Groq
-                client = Groq(api_key=groq_key)
-                model = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
-                
-                context_str = "\n\n".join([f"[{c['document_title']} - {c['section']}]:\n{c['content']}" for c in chunks])
-                system_prompt = (
-                    "You are the official Azentio Autonomous AI HR Assistant.\n"
-                    "Answer the employee or HR query truthfully and accurately using ONLY the provided policy context.\n"
-                    "Rules:\n"
-                    "1. Strictly cite the official Document Title and Section.\n"
-                    "2. If the context does not contain the answer, say 'I cannot find that in the official Azentio policy handbooks.' Never hallucinate numbers or clauses.\n"
-                    f"3. Tailor appropriately for an employee located in {employee.location} with role {employee.role}."
-                )
-
-                response = client.chat.completions.create(
-                    model=model,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": f"Policy Handbook Context:\n{context_str}\n\nEmployee Query: {query}"}
-                    ],
-                    temperature=0.1
-                )
-                llm_answer = response.choices[0].message.content
-                citations = [{"document": c["document_title"], "section": c["section"]} for c in chunks]
-                return {
-                    "answer": llm_answer,
-                    "citations": citations,
-                    "escalation": "priya.sharma@azentio.com"
-                }
-            except Exception:
-                pass # Fallback to deterministic synthesis
-
-        # Deterministic Grounded Synthesis (Zero-latency fallback)
-        citations = [{"document": c["document_title"], "section": c["section"]} for c in chunks]
-        answer = (
-            f"According to **{top_chunk['document_title']}** ({top_chunk['section']}):\n\n"
-            f"{top_chunk['content']}\n\n"
-            f"*(This policy applies to your role as {employee.role} in {employee.location})*"
+        system_prompt = (
+            "You are the official Azentio Autonomous AI HR Assistant.\n"
+            "Answer the query truthfully and accurately using ONLY the provided official policy context.\n"
+            "Rules:\n"
+            "1. Strictly cite the official Document Title and Section.\n"
+            "2. If the context does not contain the answer, say 'I cannot find that in the official Azentio policy handbooks.' Never hallucinate numbers or clauses.\n"
+            f"3. Tailor appropriately for an employee located in {employee.location} with role {employee.role}."
         )
 
+        llm_reply = cls._call_groq_llm(
+            system_prompt=system_prompt,
+            user_prompt=f"Policy Handbook Context:\n{context_str}\n\nUser Question: {query}"
+        )
+
+        citations = [{"document": c["document_title"], "section": c["section"]} for c in chunks]
+
+        if not llm_reply:
+            # Deterministic fallback
+            llm_reply = (
+                f"According to **{top_chunk['document_title']}** ({top_chunk['section']}):\n\n"
+                f"{top_chunk['content']}\n\n"
+                f"*(This policy applies to your role as {employee.role} in {employee.location})*"
+            )
+
         return {
-            "answer": answer,
+            "answer": llm_reply,
             "citations": citations,
             "escalation": "priya.sharma@azentio.com"
         }

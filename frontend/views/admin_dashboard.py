@@ -462,7 +462,7 @@ def render_admin_dashboard():
                 <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 16px; border-top: 4px solid #00DF8F;">
                     <div style="font-size: 13px; color: #64748B; font-weight: 600;">ACTIVE LLM INFERENCE</div>
                     <div style="font-size: 18px; font-weight: 700; color: #0B192C; margin: 4px 0;">Groq Cloud AI</div>
-                    <div style="font-size: 12px; color: #10B981; font-weight: 600;">🟢 Online • openai/gpt-oss-120b</div>
+                    <div style="font-size: 12px; color: #10B981; font-weight: 600;">🟢 Online • qwen/qwen3.8-27b (Groq LPU)</div>
                     <div style="font-size: 11px; color: #94A3B8; margin-top: 4px;">Ultra-low latency inference engine</div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -583,7 +583,8 @@ def render_admin_dashboard():
                         with st.spinner("Executing live inference via Groq LLM..."):
                             resp = PolicyRAGAgent.ask(query=test_q, employee=test_emp, session=session)
 
-                        st.markdown(f"**Agent Response (Model: `openai/gpt-oss-120b`):**")
+                        active_model = os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b")
+                        st.markdown(f"**Agent Response (Model: `{active_model}`):**")
                         st.info(resp["answer"])
 
                         if resp.get("citations"):

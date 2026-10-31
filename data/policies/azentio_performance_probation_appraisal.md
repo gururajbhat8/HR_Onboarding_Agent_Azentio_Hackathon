@@ -15,3 +15,4 @@
 ## Section 3: Annual Appraisal Cycle & Merit Increments
 3.1 The Azentio Annual Performance Appraisal cycle runs from January 1 to December 31, with evaluations conducted in February and merit compensation revisions effective April 1.  
 3.2 Employees who join on or before September 30 of the appraisal year are eligible for pro-rated merit increments and performance bonuses.
+

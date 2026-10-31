@@ -21,3 +21,4 @@
 ## Section 4: Whistleblower Protection & Compliance Escalation
 4.1 Any employee witnessing fraudulent accounting, bribery, document forgery, or severe security violations is protected under the Azentio Whistleblower Framework.  
 4.2 Reports may be submitted anonymously to `ethics.hotline@azentio.com`. Retaliation against any whistleblower results in immediate termination of employment.
+

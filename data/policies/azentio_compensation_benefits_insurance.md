@@ -19,3 +19,4 @@
 ## Section 4: Remote Work & Wellness Allowance
 4.1 Engineering and Operations staff receive a one-time Home Office Setup subsidy of **INR 20,000** for ergonomic chair, monitors, and desk equipment upon completing document verification.  
 4.2 A monthly broadband reimbursement of up to **INR 1,500** is credited with monthly payroll upon submission of ISP bills in the ZingHR portal.
+
